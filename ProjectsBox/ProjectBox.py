@@ -276,7 +276,7 @@ class CaseBox:
     lock = threading.Lock()
     '''用例的线程锁'''
     def __init__(self, caseFunc, module=None, *, featureBox=None, projectBox=None, level='feature', flag=None,
-                 dirName=None, locked=True, skip=True, timeout=0, frequency=15):
+                 dirName=None, locked=True, skip=False, timeout=0, frequency=15):
         """用例函数盒子，储存运行状态、通过情况等。可添加步骤盒子，但无论有无都不会有任何影响，应在用例函数内部实现stepBox调用。
 
         :param caseFunc: 实际将执行的用例函数/类等可调用对象
@@ -286,7 +286,7 @@ class CaseBox:
         :param level: 用例级别，默认分类级（project/feature）
         :param flag: 特殊标记：setup、teardown（这两个flag必定执行）
         :param dirName: 所在功能分类目录名，当传入featureBox时以其为准。
-        :param skip: 是否跳过，默认是。（仅 `projectBox.runBy="skip"` 有效）
+        :param skip: 是否跳过，默认否。（仅 `projectBox.runBy="skip"` 有效）
         :param locked: 是否锁定，默认是（是-本用例只能独立运行，不允许任何用例同时并行；否-反之，若运行中的用例全部不锁定才可运行）
         :param timeout: 在执行用例前检查其他用例状态、直到可运行的超时时间。（-1：永远，0：检查一次，>0：超时时间，秒）
         :param frequency: 检查频率，秒
@@ -310,7 +310,7 @@ class CaseBox:
         self.skip = skip
         self.flag = flag
         self.toLog = None
-        self.kfLog = None
+        self.dtLog = None
         self.frequency = frequency
         self.loop = 1
         self.error_count = 0
@@ -528,13 +528,13 @@ class CaseBox:
             raise TypeError('logger 必须含有 info 和 error 方法！')
 
     @property
-    def kfLog(self): return self.__kfLog or self.projectBox.kfLog  # 日志对象
+    def dtLog(self): return self.__dtLog or self.projectBox.dtLog  # 日志对象
 
-    @kfLog.setter
-    def kfLog(self, logger: Logger):
-        """单独设置此用例的kfLog日志对象"""
+    @dtLog.setter
+    def dtLog(self, logger: Logger):
+        """单独设置此用例的dtLog日志对象"""
         if hasattr(logger, 'info') and hasattr(logger, 'error') or logger is None:
-            self.__kfLog = logger
+            self.__dtLog = logger
         else:
             raise TypeError('logger 必须含有 info 和 error 方法！')
 
@@ -858,14 +858,14 @@ class CaseBox:
                     usetime = time.time() - start
             except CaseStopCanceled:
                 self.toLog.warning(f'用例：{self.caseNum} 等待中... 已取消')
-                self.kfLog.warning(f'用例：{self.caseNum} 等待中... 已取消')
+                self.dtLog.warning(f'用例：{self.caseNum} 等待中... 已取消')
                 self.__running = RunningStatus.Canceled
                 self.__totalTime = datetime.datetime.now() - self.launchTime
                 self.__totalTime_count += self.__totalTime
                 return self.isPass
             except CaseStopExit:
                 self.toLog.error(f'用例：{self.caseNum} 等待中... 退出执行！')
-                self.kfLog.error(f'用例：{self.caseNum} 等待中... 退出执行！')
+                self.dtLog.error(f'用例：{self.caseNum} 等待中... 退出执行！')
                 self.__running = RunningStatus.Killed
                 self.__totalTime = datetime.datetime.now() - self.launchTime
                 self.__totalTime_count += self.__totalTime
@@ -888,28 +888,28 @@ class CaseBox:
             flag = self.flag or ''
             flagMsg = (f'({flag})' if flag else '').ljust(10, ' ')
             self.toLog.info(f'--> *执行用例* {flagMsg}: {self.descriptionSimple}')
-            if self.projectBox.kfLogMode in ('start', 'both'):
-                self.kfLog.info(self.caseFullName)
+            if self.projectBox.dtLogMode in ('start', 'both'):
+                self.dtLog.info(self.caseFullName)
             try:
                 error_code = self.caseRunFunc()
                 if not isinstance(error_code, int):
                     raise TypeError(f'用例函数定义应返回整数（0表示成功），然而实际返回为{type(error_code)}')
             except CaseStopCanceled:
                 self.toLog.warning(f'用例：{self.caseNum} 执行中... 已取消')
-                self.kfLog.warning(f'用例：{self.caseNum} 执行中... 已取消')
+                self.dtLog.warning(f'用例：{self.caseNum} 执行中... 已取消')
                 self.__running = RunningStatus.Canceled
                 return self.isPass
             except CaseStopExit:
                 self.toLog.error(f'用例：{self.caseNum} 执行中... 退出执行！')
-                self.kfLog.error(f'用例：{self.caseNum} 执行中... 退出执行！')
+                self.dtLog.error(f'用例：{self.caseNum} 执行中... 退出执行！')
                 self.__running = RunningStatus.Killed
                 raise
             except Exception as err:
                 err_msg = f'{err.__class__.__name__}: {err}\nAt: \n{traceback.format_exc().replace(str(Path.cwd()), "")}'
                 oneCaseLoopMsg.error = err_msg
                 self.toLog.error(f'异常错误：{err_msg}')
-                if self.projectBox.kfLogMode in ('end', 'both'):
-                    self.kfLog.error(f'执行用例发生异常：{err_msg}')
+                if self.projectBox.dtLogMode in ('end', 'both'):
+                    self.dtLog.error(f'执行用例发生异常：{err_msg}')
                 self.error_count += 1
                 self.__running = RunningStatus.Error
                 self.__isPass = False
@@ -933,17 +933,17 @@ class CaseBox:
                 oneCaseLoopMsg.stepErrors = tuple([f'Error in Step: [{stepBox.step}]\n-----\n{stepBox.error}'
                                                    for stepBox in self.steps if stepBox.error])
                 self.__CaseStatus.loopMsgs += (oneCaseLoopMsg,)
-                if self.projectBox.kfLogMode in ('end', 'both'):
+                if self.projectBox.dtLogMode in ('end', 'both'):
                     if self.isPass is None:
-                        self.kfLog.error(f"{self.caseFullName} *** failed! *** ---execute break---")
+                        self.dtLog.error(f"{self.caseFullName} *** failed! *** ---execute break---")
                     elif not self.isPass:
-                        self.kfLog.error(f"{self.caseFullName} *** failed! ***")
+                        self.dtLog.error(f"{self.caseFullName} *** failed! ***")
                     elif self.isPass:
-                        self.kfLog.info(f"{self.caseFullName} *** succeeded! ***")
+                        self.dtLog.info(f"{self.caseFullName} *** succeeded! ***")
 
         for i in range(self.loop):
             if self.loop > 1:
-                self.kfLog.info(f'循环执行用例 *Loop[{i+1}/{self.loop}]*'.center(60, '-'))
+                self.dtLog.info(f'循环执行用例 *Loop[{i + 1}/{self.loop}]*'.center(60, '-'))
             if not self.locked:  # 不锁定，不要求独立执行，则不需要线程锁
                 main_run(OneCaseLoopMsg(loopIndex=i))
             with CaseBox.lock:
@@ -1064,7 +1064,7 @@ class FeatureBox:
     @property
     def toLog(self): return self.projectBox.toLog  # 日志对象
     @property
-    def kfLog(self): return self.projectBox.kfLog  # 日志对象
+    def dtLog(self): return self.projectBox.dtLog  # 日志对象
     @property
     def arguments(self): return self.projectBox.arguments  # 本次运行参数
 
@@ -1208,14 +1208,14 @@ class FeatureBox:
             return ok, no
 
         if self.setup is not None:
-            self.kfLog.info('')
-            self.kfLog.info(f' {self.featureName} Setup Start '.center(75, '-'))
+            self.dtLog.info('')
+            self.dtLog.info(f' {self.featureName} Setup Start '.center(75, '-'))
             if not self.setup.run():
                 return ok, no
 
-        self.kfLog.info('')
-        self.kfLog.info(' Test Start '.center(75, '-'))
-        self.kfLog.info(f' start execute module: {self.featureName} '.center(75, '-'))
+        self.dtLog.info('')
+        self.dtLog.info(' Test Start '.center(75, '-'))
+        self.dtLog.info(f' start execute module: {self.featureName} '.center(75, '-'))
         self.sortCaseBoxList()
         for caseBox in self.caseBoxList:
             isPass = caseBox.run()
@@ -1230,21 +1230,21 @@ class FeatureBox:
             ok += _ok
             no += _no
         if self.teardown is not None:
-            self.kfLog.info('')
-            self.kfLog.info(f' {self.featureName} Teardown Start '.center(75, '-'))
+            self.dtLog.info('')
+            self.dtLog.info(f' {self.featureName} Teardown Start '.center(75, '-'))
             self.teardown.run()
         return ok, no
 
 
 class ProjectBox:
     """一个项目盒对象，包含所有功能分类、所有用例函数对象"""
-    def __init__(self, projectPath: Path, toLog=None, kfLog=None, *, kfLogMode='end', runBy='arguments'):
+    def __init__(self, projectPath: Path, toLog:Logger=None, dtLog:Logger=None, *, dtLogMode='end', runBy='skip'):
         """项目盒子，存储一个项目的所有功能分类、用例函数
 
         :param projectPath: 项目路径
-        :param toLog: 用于记录简要和重要信息的日志对象，至少需提供 info、error两个方法。默认空。
-        :param kfLog: 用于记录用例执行的日志对象，至少需提供 info、error两个方法。默认空。
-        :param kfLogMode: kfLog在用例执行前后的记录模式：no-执行前后不记录，end-只记录执行完毕，start-只记录执行前，both-前后都记录
+        :param toLog: 用于记录简要和重要信息的日志对象。默认空。
+        :param dtLog: 用于记录用例执行详情的日志对象。默认空。
+        :param dtLogMode: dtLog在用例执行前后的记录模式：no-执行前后不记录，end-只记录执行完毕，start-只记录执行前，both-前后都记录
         :param runBy: 执行用例的筛选方式，arguments-通过赋值arguments，skip-通过用例skip属性
         """
         self.__projectPath = projectPath
@@ -1252,8 +1252,8 @@ class ProjectBox:
         self.__setup: CaseBox | None = None
         self.__teardown: CaseBox | None = None
         self.toLog = toLog
-        self.kfLog = kfLog
-        self.__kfLogMode = kfLogMode
+        self.dtLog = dtLog
+        self.__dtLogMode = dtLogMode
         self.runBy = runBy
         self.__arguments = {}
 
@@ -1315,7 +1315,7 @@ class ProjectBox:
         return f'<ProjectBox id="{id(self)}" projectName="{self.projectName}" features="{feature_names}"/>'
 
     @property
-    def kfLogMode(self): return self.__kfLogMode
+    def dtLogMode(self): return self.__dtLogMode
     @property
     def featureBoxes(self): return self.__featureBoxes  # 所有功能分类盒对象
     @property
@@ -1329,29 +1329,31 @@ class ProjectBox:
 
     @property
     def toLog(self) -> Logger:
-        """用于记录简要和重要信息的日志对象"""
+        """用于记录简要和重要信息的日志对象，应仅用于扼要信息记录"""
         if self.__toLog is not None:
             return self.__toLog
         return emptyLogger
 
     @property
-    def kfLog(self) -> Logger:
-        """用于记录用例执行的日志对象"""
-        if self.__kfLog is not None:
-            return self.__kfLog
+    def dtLog(self) -> Logger:
+        """用于记录用例执行详情的日志对象，可用于外部调用"""
+        if self.__dtLog is not None:
+            return self.__dtLog
         return emptyLogger
 
     @toLog.setter
     def toLog(self, logger: Logger):
+        """用于记录简要和重要信息的日志对象，应仅用于扼要信息记录"""
         if hasattr(logger, 'info') and hasattr(logger, 'error') or logger is None:
             self.__toLog = logger
         else:
             raise TypeError('设置日志对象至少必须含有`info`和`error`方法！')
 
-    @kfLog.setter
-    def kfLog(self, logger: Logger):
+    @dtLog.setter
+    def dtLog(self, logger: Logger):
+        """用于记录用例执行详情的日志对象，可用于外部调用"""
         if hasattr(logger, 'info') and hasattr(logger, 'error') or logger is None:
-            self.__kfLog = logger
+            self.__dtLog = logger
         else:
             raise TypeError('设置日志对象至少必须含有`info`和`error`方法！')
 
@@ -1551,8 +1553,8 @@ class ProjectBox:
             if feature and feature not in featureNames or case_run_count == 0:
                 return ok, no
             if self.setup is not None:
-                self.kfLog.info('')
-                self.kfLog.info(' Project Setup Start '.center(75, '-'))
+                self.dtLog.info('')
+                self.dtLog.info(' Project Setup Start '.center(75, '-'))
                 setUpIsPass = self.setup.run()
                 if not setUpIsPass:
                     return ok, no
@@ -1561,8 +1563,8 @@ class ProjectBox:
                 ok += _ok
                 no += _no
             if self.teardown is not None:
-                self.kfLog.info('')
-                self.kfLog.info(' Project Teardown Start '.center(75, '-'))
+                self.dtLog.info('')
+                self.dtLog.info(' Project Teardown Start '.center(75, '-'))
                 self.teardown.run()
             return ok, no
         except CaseStopExit as err:
