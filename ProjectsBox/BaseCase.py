@@ -12,9 +12,11 @@ from abc import abstractmethod
 from types import ModuleType
 from typing import Tuple, Callable, Union
 
-from .BaseType import IBaseCase, StepFailedError
+from .BaseType import IBaseCase, StepFailedError, simpleLog
 from .ProjectBox import CaseBox, StepBox
 from .Step import Step, WithStep
+
+dtLogger = simpleLog('DetailLogger')
 
 
 class BaseCase(IBaseCase):
@@ -22,7 +24,6 @@ class BaseCase(IBaseCase):
 
     - 必须重定义属性：`case_num`、`case_title`
     - 必须重写方法：`init`、`run`
-    - 若不在 `init` 方法中通过 `self.setSelf(...)` 设置自我属性，则默认相当于 `self.setSelf(self.run)`
 
     继承示例::
 
@@ -31,7 +32,6 @@ class BaseCase(IBaseCase):
             case_title = '我的用例001'
 
             def init(self):
-                self.setSelf(self.run, featureBox=featureBox)
                 self.step1 = self.addStepBox("step1: 选择电表", func1)
                 self.step2 = self.addStepBox("step2: 连接电表", func2)
                 self.step3 = self.addStepBox("step3: 断开电表", func3)
@@ -98,7 +98,7 @@ class BaseCase(IBaseCase):
         self.successMsg = ''  # 执行成功后的附加信息
         self.failMsg = ''  # 执行失败后的附加信息
         self.init()
-        self.caseBox.kfLog = kfLog.kfLog
+        self.caseBox.dtLog = dtLogger
 
     def at_step(self, stepBox: StepBox) -> StepBox:
         """装饰步骤盒的步骤函数，在步骤前后执行数据库记录更新；在可传递的情况下传递自身exLog参数"""
@@ -111,11 +111,11 @@ class BaseCase(IBaseCase):
                     result = func(*args, **kwargs)
                     return result
                 except Exception as e:
-                    self.caseBox.kfLog.error(f'步骤失败：【{stepBox.step}】，问题：【{e.__class__.__name__}: {e}】')
+                    self.caseBox.dtLog.error(f'步骤失败：【{stepBox.step}】，问题：【{e.__class__.__name__}: {e}】')
                     raise StepFailedError(str(stepBox.step), f'执行步骤失败，问题：{e}') from e
 
         stepBox.stepFunc = wrapper
-        stepBox.step.logger = self.caseBox.toLog
+        stepBox.step.logger = dtLogger
         return stepBox
 
     def setCaseBox(self, module: ModuleType = None, *, featureBox=None, projectBox=None,
@@ -228,7 +228,7 @@ class BaseCase(IBaseCase):
         frequency = 45
         while (now := datetime.datetime.now()) - start < datetime.timedelta(days=days):
             if now.hour == targetTime.hour and now.minute == targetTime.minute and now.second == targetTime.second:
-                self.caseBox.kfLog.info(f'到达指定时间 {atTime}，开始定时执行')
+                self.caseBox.dtLog.info(f'到达指定时间 {atTime}，开始定时执行')
                 doFunc()
                 frequency = 45
             elif now.hour == closeTo.hour and now.minute == closeTo.minute:
