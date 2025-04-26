@@ -21,7 +21,7 @@
 
 ```python
 from pathlib import Path
-from ProjectsBox import ProjectBox, FeatureBox, CaseBox, WithStep, BaseCase
+from ProjectsBox import ProjectBox, FeatureBox, CaseBox, BaseCase
 
 projectBox = ProjectBox(Path('.'))
 featureBox = FeatureBox('feature1', projectBox)
@@ -39,10 +39,8 @@ def beforeCase(func):
 @beforeCase
 def case_001():
     """TestCase: case_001, 测试用例001"""
-    with WithStep("step1: 测试步骤1"):
-        projectBox.dtLog.info("开始测试步骤***1")
-    with WithStep("step2: 测试步骤2"):
-        projectBox.dtLog.info("开始测试步骤***2")
+    projectBox.dtLog.info("开始测试步骤***1")
+    projectBox.dtLog.info("开始测试步骤***2")
     return 0
 
 
