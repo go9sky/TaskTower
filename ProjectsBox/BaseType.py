@@ -21,7 +21,7 @@ def simpleLog(name: str, logLevel=20):
     """生成一个简单的仅输出到控制台的日志对象"""
     logger = logging.getLogger(name)
     logger.setLevel(logLevel)
-    fmt = f"[{name}][%(levelname)-7s][line:%(lineno)4d] %(message)s"
+    fmt = f"[{name:<12}][%(levelname)-7s] %(message)s"
     formatter = logging.Formatter(fmt)
     streamHandler = logging.StreamHandler()
     streamHandler.setFormatter(formatter)
