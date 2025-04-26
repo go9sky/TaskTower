@@ -4,12 +4,12 @@
 # 简介：以业务为中心，将项目、业务功能分类、用例、用例步骤抽象定义为一个盒子进行管理
 import datetime
 import importlib
-import pathlib
 import re
 import threading
 import time
 import traceback
 import warnings
+from pathlib import Path
 from logging import Logger
 from types import ModuleType
 from typing import List, Tuple, Union, Optional, Callable, Dict, Any
@@ -195,11 +195,11 @@ class StepBox:
             return True
         # 2. 若本步骤锁定：-> 读取当前运行的步骤
         runningCases = runningCases or self.caseBox.projectBox.getRunningCaseBoxes()
-        runningStepBoxs = [case.getRunningStep() for case in runningCases if case.getRunningStep() is not None]
-        if not runningStepBoxs:  # 2.1 若无其他运行步骤：执行本步骤
+        runningStepBoxes = [case.getRunningStep() for case in runningCases if case.getRunningStep() is not None]
+        if not runningStepBoxes:  # 2.1 若无其他运行步骤：执行本步骤
             return True
         # 2.2 若有其他运行步骤 -> 遍历其他步骤是否锁定。 只有其他步骤全部不锁定才判断将执行。
-        for step in runningStepBoxs:
+        for step in runningStepBoxes:
             if step.locked:  # 2.2.1 若其他步骤锁定：继续等待
                 return False
         return True  # 2.2.2 若其他步骤不锁定：执行本步骤
@@ -250,7 +250,7 @@ class StepBox:
             try:
                 result = self.stepFunc(*args, **kwargs)
             except Exception as err:
-                err_msg = f'{err.__class__.__name__}: {err}\nAt: \n{traceback.format_exc().replace(str(pathlib.Path.cwd()), "")}'
+                err_msg = f'{err.__class__.__name__}: {err}\nAt: \n{traceback.format_exc().replace(str(Path.cwd()), "")}'
                 self.error = err_msg
                 self.toLog.error(f'异常错误：{err_msg}')
                 self.__running = RunningStatus.Error
@@ -328,7 +328,7 @@ class CaseBox:
         self.__duration = datetime.timedelta()  # 用例用时/耗时
         self.__totalTime = datetime.timedelta()  # 启动到用例实际结束的总耗时（和上面的差值就是浪费的等待时间）
         self.__totalTime_count = datetime.timedelta()  # 循环执行时，启动到用例实际结束的总耗时合计
-        self.__steps: Tuple[StepBox] = ()
+        self.__steps: Tuple[StepBox, ...] = ()
         self.__DataSpace = {}  # 数据空间，用于存储任意数据
         if all((featureBox, projectBox)) and featureBox.projectBox is not projectBox:
             raise ValueError('父级FeatureBox的根项目与传入的根项目不一致！')
@@ -395,7 +395,7 @@ class CaseBox:
         etree.SubElement(root, 'caseFunc', attrib={'value': str(self.caseFunc).replace('<', '‹').replace('>', '›')})
         etree.SubElement(root, 'module', attrib={'value': str(self.module).replace('<', '‹').replace('>', '›')})
         etree.SubElement(root, 'caseFullName', attrib={'value': str(self.caseFullName).replace('<', '‹').replace('>', '›')})
-        stepsEle = etree.SubElement(root, 'steps', attrib={'count': str(len(self.steps))})
+        _ = etree.SubElement(root, 'steps', attrib={'count': str(len(self.steps))})
         tree = etree.ElementTree(root)
         xml_str = minidom.parseString(etree.tostring(tree.getroot())).toprettyxml()
         xml_str: str = xml_str.replace('<?xml version="1.0" ?>', '')
@@ -747,13 +747,13 @@ class CaseBox:
                 return True
             label = self.label
             if _untags:
-                for untag in _untags.split(","):
-                    if untag.lower() in label:
+                for _untag in _untags.split(","):
+                    if _untag.lower() in label:
                         return False
             # 如果 taglist 中包含任意一个 tag, 则返回True
             if _tags:
-                for tag in _tags.split(","):
-                    if tag.lower() in label:
+                for _tag in _tags.split(","):
+                    if _tag.lower() in label:
                         return True
             return False
 
@@ -789,15 +789,15 @@ class CaseBox:
         :param projectBox: 指定的projectBox
         :return: 本用例是否将执行
         """
-        runningFuncBoxs = [caseBox for proBox in projectBox for caseBox in proBox.getRunningCaseBoxes()]
-        if not runningFuncBoxs:  # 1. 若无其他运行用例：本用例将运行
+        runningFuncBoxes = [caseBox for proBox in projectBox for caseBox in proBox.getRunningCaseBoxes()]
+        if not runningFuncBoxes:  # 1. 若无其他运行用例：本用例将运行
             return True
         # 2. 若有其他运行用例：读取自身 `locked`
         if self.locked:  # 2.1. 若自身锁定：继续等待
             return False
         # 2.2. 若自身不锁定 -> 读取该运行中的用例的 `locked`
         # 2.2.1. 若任一用例锁定，或自身无步骤：继续等待
-        if not self.steps or any([caseBox.locked for caseBox in runningFuncBoxs]):
+        if not self.steps or any([caseBox.locked for caseBox in runningFuncBoxes]):
             return False
         # 2.2.2. 若所有用例非独立执行：执行本用例
         return True
@@ -905,7 +905,7 @@ class CaseBox:
                 self.__running = RunningStatus.Killed
                 raise
             except Exception as err:
-                err_msg = f'{err.__class__.__name__}: {err}\nAt: \n{traceback.format_exc().replace(str(pathlib.Path.cwd()), "")}'
+                err_msg = f'{err.__class__.__name__}: {err}\nAt: \n{traceback.format_exc().replace(str(Path.cwd()), "")}'
                 oneCaseLoopMsg.error = err_msg
                 self.toLog.error(f'异常错误：{err_msg}')
                 if self.projectBox.kfLogMode in ('end', 'both'):
@@ -973,12 +973,12 @@ class FeatureBox:
             raise TypeError('父级只能是 FeatureBox！')
         self.__feature_name: str = name
         self.__parent: FeatureBox = parentFeatureBox
-        self.__children: Tuple[FeatureBox] = ()
-        self.__caseBoxList: Tuple[CaseBox] = caseBoxList or ()
-        self.__setup: CaseBox = None
-        self.__teardown: CaseBox = None
+        self.__children: Tuple[FeatureBox, ...] = ()
+        self.__caseBoxList: Tuple[CaseBox, ...] = caseBoxList and tuple(caseBoxList) or ()
+        self.__setup: CaseBox | None = None
+        self.__teardown: CaseBox | None = None
         self.__projectBox = projectBox
-        if self not in projectBox.featureBoxs:
+        if self not in projectBox.featureBoxes:
             projectBox.addFeatureBox(self)
 
     def __str__(self): return self.descriptionFull
@@ -1238,7 +1238,7 @@ class FeatureBox:
 
 class ProjectBox:
     """一个项目盒对象，包含所有功能分类、所有用例函数对象"""
-    def __init__(self, projectPath: pathlib.Path, toLog=None, kfLog=None, *, kfLogMode='end', runBy='arguments'):
+    def __init__(self, projectPath: Path, toLog=None, kfLog=None, *, kfLogMode='end', runBy='arguments'):
         """项目盒子，存储一个项目的所有功能分类、用例函数
 
         :param projectPath: 项目路径
@@ -1248,9 +1248,9 @@ class ProjectBox:
         :param runBy: 执行用例的筛选方式，arguments-通过赋值arguments，skip-通过用例skip属性
         """
         self.__projectPath = projectPath
-        self.__featureBoxs: Tuple[FeatureBox] = ()
-        self.__setup: CaseBox = None
-        self.__teardown: CaseBox = None
+        self.__featureBoxes: Tuple[FeatureBox, ...] = ()
+        self.__setup: CaseBox | None = None
+        self.__teardown: CaseBox | None = None
         self.toLog = toLog
         self.kfLog = kfLog
         self.__kfLogMode = kfLogMode
@@ -1268,19 +1268,19 @@ class ProjectBox:
         root: etree._Element = tree.getroot()
         setupEle: etree._Element = root.find('setup')
         teardownEle: etree._Element = root.find('teardown')
-        featureBoxsEle: etree._Element = root.find('featureBoxs')
+        featureBoxesEle: etree._Element = root.find('featureBoxes')
         if self.setup:
             setupEle.clear()
             setupEle.append(etree.ElementTree(etree.fromstring(self.setup.descriptionDetails)).getroot())
         if self.teardown:
             teardownEle.clear()
             teardownEle.append(etree.ElementTree(etree.fromstring(self.teardown.descriptionDetails)).getroot())
-        featureBoxsEle.clear()
-        for feature in self.featureBoxs:
+        featureBoxesEle.clear()
+        for feature in self.featureBoxes:
             feature_tree = etree.ElementTree(etree.fromstring(feature.descriptionDetails))
             feature_root: etree._Element = feature_tree.getroot()
             feature_root.set('featureName', feature.featureName)
-            featureBoxsEle.append(feature_root)
+            featureBoxesEle.append(feature_root)
         new_xml = minidom.parseString(etree.tostring(tree.getroot()).replace(b'\n',b'').replace(b'\t',b'')).toprettyxml()
         new_xml: str = new_xml.replace('<?xml version="1.0" ?>', '')
         return new_xml
@@ -1294,14 +1294,14 @@ class ProjectBox:
         etree.SubElement(root, 'projectPath', attrib={'projectPath': str(self.projectPath)})
         setupEle = etree.SubElement(root, 'setup')
         teardownEle = etree.SubElement(root, 'teardown')
-        featureBoxsEle = etree.SubElement(root, 'featureBoxs', attrib={'count': str(len(self.featureBoxs))})
+        featureBoxesEle = etree.SubElement(root, 'featureBoxes', attrib={'count': str(len(self.featureBoxes))})
 
         if self.setup:
             setupEle.append(etree.ElementTree(etree.fromstring(self.setup.descriptionSimple)).getroot())
         if self.teardown:
             teardownEle.append(etree.ElementTree(etree.fromstring(self.teardown.descriptionSimple)).getroot())
-        for feature in self.featureBoxs:
-            featureBoxsEle.append(etree.ElementTree(etree.fromstring(feature.descriptionSimple)).getroot())
+        for feature in self.featureBoxes:
+            featureBoxesEle.append(etree.ElementTree(etree.fromstring(feature.descriptionSimple)).getroot())
 
         tree = etree.ElementTree(root)
         xml_str = minidom.parseString(etree.tostring(tree.getroot())).toprettyxml()
@@ -1311,13 +1311,13 @@ class ProjectBox:
     @property
     def descriptionSimple(self):
         """简单自我描述"""
-        feature_names = ';'.join([feature.featureName for feature in self.featureBoxs])
+        feature_names = ';'.join([feature.featureName for feature in self.featureBoxes])
         return f'<ProjectBox id="{id(self)}" projectName="{self.projectName}" features="{feature_names}"/>'
 
     @property
     def kfLogMode(self): return self.__kfLogMode
     @property
-    def featureBoxs(self): return self.__featureBoxs  # 所有功能分类盒对象
+    def featureBoxes(self): return self.__featureBoxes  # 所有功能分类盒对象
     @property
     def projectPath(self): return self.__projectPath  # 项目路径
     @property
@@ -1427,7 +1427,7 @@ class ProjectBox:
 
     def getFeatureBox(self, featureName: str):
         """获取一个 FeatureBox"""
-        for featureBox in self.featureBoxs:
+        for featureBox in self.featureBoxes:
             if featureBox.featureName == featureName:
                 return featureBox
         return None
@@ -1441,8 +1441,8 @@ class ProjectBox:
             self.toLog.error(f'只能添加相同根项目的 FeatureBox！')
             raise TypeError(f'只能添加相同根项目的 FeatureBox！')
         for _f in featureBox:
-            if _f not in self.featureBoxs:
-                self.__featureBoxs += (_f,)
+            if _f not in self.featureBoxes:
+                self.__featureBoxes += (_f,)
 
     def setSetupCaseBox(self, setupCaseBox: CaseBox):
         """设置setup用例函数盒"""
@@ -1482,14 +1482,14 @@ class ProjectBox:
 
     def getRunningCaseBoxes(self) -> List[CaseBox]:
         """获取当前所有正在运行的用例函数盒"""
-        runningCaseBoxs = []
+        runningCaseBoxes = []
         if self.setup is not None and self.setup.running == RunningStatus.Running:
-            runningCaseBoxs.append(self.setup)
+            runningCaseBoxes.append(self.setup)
         if self.teardown is not None and self.teardown.running == RunningStatus.Running:
-            runningCaseBoxs.append(self.teardown)
-        for featureBox in self.featureBoxs:
-            runningCaseBoxs += featureBox.getRunningCaseBox()
-        return runningCaseBoxs
+            runningCaseBoxes.append(self.teardown)
+        for featureBox in self.featureBoxes:
+            runningCaseBoxes += featureBox.getRunningCaseBox()
+        return runningCaseBoxes
 
     def getAllCaseStatus(self, exceptUnRun=False) -> AllCaseStatus:
         """获取当前项目所有用例的执行状态
@@ -1502,7 +1502,7 @@ class ProjectBox:
             all_status.runningCases += (self.setup.CaseStatus,)
         if self.teardown is not None and self.teardown.running == RunningStatus.Running:
             all_status.runningCases += (self.teardown.CaseStatus,)
-        for featureBox in self.featureBoxs:
+        for featureBox in self.featureBoxes:
             runningCases = featureBox.getRunningCaseBox()
             for oneCase in runningCases:
                 all_status.runningCases += (oneCase.CaseStatus,)
@@ -1514,12 +1514,12 @@ class ProjectBox:
 
     def getAllWillRunCaseBoxes(self) -> List[CaseBox]:
         """获取所有将执行的用例函数盒"""
-        willRunCaseBoxs = []
-        for featureBox in self.featureBoxs:
-            willRunCaseBoxs += featureBox.getWillRunCaseBoxes()
-        willRunCaseBoxs.sort(key=lambda cb: cb.caseNum)
-        willRunCaseBoxs.sort(key=lambda cb: cb.order)
-        return willRunCaseBoxs
+        willRunCaseBoxes = []
+        for featureBox in self.featureBoxes:
+            willRunCaseBoxes += featureBox.getWillRunCaseBoxes()
+        willRunCaseBoxes.sort(key=lambda cb: cb.caseNum)
+        willRunCaseBoxes.sort(key=lambda cb: cb.order)
+        return willRunCaseBoxes
 
     def getCaseBoxByID(self, caseBoxID: int):
         """根据用例盒ID获取用例盒对象"""
@@ -1528,7 +1528,7 @@ class ProjectBox:
             return self.setup
         if self.teardown and self.teardown.id == caseBoxID:
             return self.teardown
-        for featureBox in self.featureBoxs:
+        for featureBox in self.featureBoxes:
             if featureBox.setup and featureBox.setup.id == caseBoxID:
                 return featureBox.setup
             if featureBox.teardown and featureBox.teardown.id == caseBoxID:
@@ -1546,8 +1546,8 @@ class ProjectBox:
         ok = no = 0
         feature = self.arguments.get('feature') if self.runBy == 'arguments' else None
         try:
-            featureNames = [fb.featureName for fb in self.featureBoxs]
-            case_run_count = sum([fb.countRunCase() for fb in self.featureBoxs])
+            featureNames = [fb.featureName for fb in self.featureBoxes]
+            case_run_count = sum([fb.countRunCase() for fb in self.featureBoxes])
             if feature and feature not in featureNames or case_run_count == 0:
                 return ok, no
             if self.setup is not None:
@@ -1556,7 +1556,7 @@ class ProjectBox:
                 setUpIsPass = self.setup.run()
                 if not setUpIsPass:
                     return ok, no
-            for childFeature in self.featureBoxs:
+            for childFeature in self.featureBoxes:
                 _ok, _no = childFeature.run()
                 ok += _ok
                 no += _no
