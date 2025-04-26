@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 # 创建日期：2024/5/21
 # 作者：天霄
-# 简介：
-import pathlib
+# 简介：一句步骤描述对象化
 import re
 import traceback
+from pathlib import Path
 
 
 class WithLogTag:
@@ -64,8 +64,8 @@ class WithLogTag:
         # 存在异常，记录error及异常信息、详细调用栈
         if exc_type is not None:
             if issubclass(exc_type, Exception):
-                tb = f'{exc_type.__name__}: {exc_val}\nAt: \n{traceback.format_exc().replace(str(pathlib.Path.cwd()), "")}'  # 含关联错误的堆栈
-                # tb = f'{exc_type.__name__}: {exc_val}\nAt: \n{"".join(traceback.format_tb(exc_tb)).replace(str(pathlib.Path.cwd()), "")}'  # 仅该错误的堆栈
+                tb = f'{exc_type.__name__}: {exc_val}\nAt: \n{traceback.format_exc().replace(str(Path.cwd()), "")}'  # 含关联错误的堆栈
+                # tb = f'{exc_type.__name__}: {exc_val}\nAt: \n{"".join(traceback.format_tb(exc_tb)).replace(str(Path.cwd()), "")}'  # 仅该错误的堆栈
                 self._logger.error(f"{self._exitTag} {tb}")
                 self.tb_callback(tb)
                 return not self._raiseError
@@ -117,8 +117,8 @@ class WithStep(WithLogTag):
         if exc_type is not None:
             if issubclass(exc_type, Exception):
                 self._logger.error(f"{self.step} *Failed!* {exc_val}")
-                tb = f'{exc_type.__name__}  At: \n{traceback.format_exc().replace(str(pathlib.Path.cwd()), "")}'  # 含关联错误的堆栈
-                # tb = f'{exc_type.__name__}  At: \n{"".join(traceback.format_tb(exc_tb)).replace(str(pathlib.Path.cwd()), "")}'  # 仅该错误的堆栈
+                tb = f'{exc_type.__name__}  At: \n{traceback.format_exc().replace(str(Path.cwd()), "")}'  # 含关联错误的堆栈
+                # tb = f'{exc_type.__name__}  At: \n{"".join(traceback.format_tb(exc_tb)).replace(str(Path.cwd()), "")}'  # 仅该错误的堆栈
                 self._logger.error(tb)
                 self.tb_callback(tb)
                 return not self._raiseError
