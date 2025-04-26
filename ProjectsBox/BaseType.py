@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 __all__ = ['simpleLog', 'RunningStatus', 'IBaseCase', 'baseConfig',
            'StepFailContinue', 'CaseStopCanceled', 'CaseStopExit',
            'SkippedError', 'ExecuteClashError', 'ExecuteTimeoutError',
+           'StepFailedError',
            'OneCaseLoopMsg', 'OneCaseStatus', 'AllCaseStatus']
 
 
@@ -68,6 +69,8 @@ class CaseStopExit(Exception):  """退出所有用例执行时应抛出的错误
 class SkippedError(Exception):  """错误：已跳过"""
 class ExecuteClashError(Exception):  """错误：执行冲突"""
 class ExecuteTimeoutError(Exception):  """错误：执行等待超时"""
+
+class StepFailedError(Exception):  """错误：执行步骤失败"""
 
 
 # =========数据结构定义==========
