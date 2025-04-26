@@ -5,19 +5,16 @@
 import datetime
 import functools
 import os
-import pathlib
 import re
 import time
+from pathlib import Path
 from abc import abstractmethod
 from types import ModuleType
 from typing import Tuple, Callable, Union
 
-from .BaseType import IBaseCase
+from .BaseType import IBaseCase, StepFailedError
 from .ProjectBox import CaseBox, StepBox
-from .Step import Step
-
-# from comm_func import WithStep, kfLog
-# from comm_func.KFExceptions import KFException, KFStepFailedError
+from .Step import Step, WithStep
 
 
 class BaseCase(IBaseCase):
@@ -69,7 +66,7 @@ class BaseCase(IBaseCase):
     def __init_subclass__(cls, **kwargs):
         """子类定义检查：必须定义类属性：case_num、case_title"""
         cls.isCase = not any(map(lambda x: x in cls.case_label, ('setup', 'teardown')))
-        file = pathlib.Path(cls.__module__.replace('.', os.sep) + '.py')
+        file = Path(cls.__module__.replace('.', os.sep) + '.py')
         cls.file = file
         cls.dirname = file.parent.name
         if not cls.case_num:
@@ -113,12 +110,12 @@ class BaseCase(IBaseCase):
                 try:
                     result = func(*args, **kwargs)
                     return result
-                except KFException as e:
-                    kfLog.kfLog.error(f'步骤失败：【{stepBox.step}】，问题：【{e.__class__.__name__}: {e}】')
-                    raise KFStepFailedError(str(stepBox.step), f'执行步骤失败，问题：{e}') from e
+                except Exception as e:
+                    self.caseBox.kfLog.error(f'步骤失败：【{stepBox.step}】，问题：【{e.__class__.__name__}: {e}】')
+                    raise StepFailedError(str(stepBox.step), f'执行步骤失败，问题：{e}') from e
 
         stepBox.stepFunc = wrapper
-        stepBox.step.logger = kfLog.kfLog
+        stepBox.step.logger = self.caseBox.toLog
         return stepBox
 
     def setCaseBox(self, module: ModuleType = None, *, featureBox=None, projectBox=None,
@@ -231,7 +228,7 @@ class BaseCase(IBaseCase):
         frequency = 45
         while (now := datetime.datetime.now()) - start < datetime.timedelta(days=days):
             if now.hour == targetTime.hour and now.minute == targetTime.minute and now.second == targetTime.second:
-                kfLog.kfLog.info(f'到达指定时间 {atTime}，开始定时执行')
+                self.caseBox.kfLog.info(f'到达指定时间 {atTime}，开始定时执行')
                 doFunc()
                 frequency = 45
             elif now.hour == closeTo.hour and now.minute == closeTo.minute:
