@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Tuple
 from pydantic import BaseModel, Field
 
-__all__ = ['simpleLog', 'RunningStatus', 'IBaseCase', 'baseConfig',
+__all__ = ['simpleLog', 'RunningStatus', 'IBaseCase', 'baseConfig', 'emptyLogger',
            'StepFailContinue', 'CaseStopCanceled', 'CaseStopExit',
            'SkippedError', 'ExecuteClashError', 'ExecuteTimeoutError',
            'StepFailedError',
@@ -59,6 +59,7 @@ class BaseConfigs:
 
 
 baseConfig = BaseConfigs
+emptyLogger = simpleLog('BoxLogger')
 
 
 class StepFailContinue(Exception):  """步骤失败但继续的错误"""

@@ -13,7 +13,8 @@ from types import ModuleType
 from typing import Tuple, Callable, Union
 
 from .BaseType import IBaseCase, StepFailedError, simpleLog
-from .ProjectBox import CaseBox, StepBox
+from .ProjectBox import CaseBox
+from .StepBox import StepBox
 from .Step import Step, WithStep
 
 dtLogger = simpleLog('DetailLogger')
