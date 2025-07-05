@@ -1,7 +1,13 @@
 # Projects-Box
 
+## 简介
 一个测试用例项目加载工具。将每个项目抽象分为项目（`ProjectBox`）、模块分类（`FeatureBox`）、用例函数（`CaseBox`）、步骤（`StepBox`）四个层级，
 形成一个树形结构，通过`ProjectBox.run()`执行整个测试用例项目。
+
+**注意**：本库初衷是为了能实时查看用例执行状态，所以将自动化测试的层级抽象类化。适用于长时间执行的自动化用例项目，可提供实时状态查询。
+
+**最低侵入性使用要求**：用例函数在执行通过时必须返回`0`，其他无返回、任何返回、任何异常都视为用例失败。
+
 
 ## 安装
 
@@ -23,8 +29,9 @@
 from pathlib import Path
 from ProjectsBox import ProjectBox, FeatureBox, CaseBox, BaseCase
 
-projectBox = ProjectBox(Path('.'))
-featureBox = FeatureBox('feature1', projectBox)
+projectBox = ProjectBox(Path('.'))  # 用例项目初始化，设置项目根目录
+featureBox = FeatureBox('feature1', projectBox)  # 模块分类初始化，设置模块分类名称、所属项目。这个名称可以是子目录名
+# 以上两行代码的含义是：有一个当前目录的项目，项目下有个 feature1 模块分类
 
 
 def beforeCase(func):
@@ -35,7 +42,7 @@ def beforeCase(func):
     return wrapper
 
 
-# ############# 方式一：耦合性较低，定义执行函数即可，仅返回0代表成功 ###########
+# ############# 方式一：耦合性较低、对原代码侵入性低，定义执行函数即可，返回0代表成功 ###########
 @beforeCase
 def case_001():
     """TestCase: case_001, 测试用例001"""
