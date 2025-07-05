@@ -26,7 +26,7 @@ class ProjectBox:
 
         :param projectPath: 项目路径
         :param toLog: 用于记录简要和重要信息的日志对象。默认空。
-        :param dtLog: 用于记录用例执行详情的日志对象。默认空。
+        :param dtLog: 用于记录用例执行详情的日志对象。默认空。`dt` 是 `detail` 的简写。
         :param dtLogMode: dtLog在用例执行前后的记录模式：no-执行前后不记录，end-只记录执行完毕，start-只记录执行前，both-前后都记录
         :param runBy: 执行用例的筛选方式，arguments-通过赋值arguments，skip-通过用例skip属性
         """
@@ -113,16 +113,12 @@ class ProjectBox:
     @property
     def toLog(self) -> Logger:
         """用于记录简要和重要信息的日志对象，应仅用于扼要信息记录"""
-        if self.__toLog is not None:
-            return self.__toLog
-        return emptyLogger
+        return self.__toLog if self.__toLog is not None else emptyLogger
 
     @property
     def dtLog(self) -> Logger:
         """用于记录用例执行详情的日志对象，可用于外部调用"""
-        if self.__dtLog is not None:
-            return self.__dtLog
-        return emptyLogger
+        return self.__dtLog if self.__dtLog is not None else emptyLogger
 
     @toLog.setter
     def toLog(self, logger: Logger):

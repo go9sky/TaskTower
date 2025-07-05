@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 class WithLogTag:
-    def __init__(self, **kwargs):
+    def __init__(self, enterTag='', exitTag='', enterMsg='', exitMsg='', *, logger=None, tb_callback=None, raiseError=True):
         """特殊日志标签的上下文管理器，在开头结尾打印指定tag和信息
 
         :param enterTag: 进入时前置tag
@@ -26,21 +26,23 @@ class WithLogTag:
                     exitTag="## Response ##",
                     enterMsg="msg1",
                     exitMsg="msg2") as w:
+                print('hello world')
                 w.exitMsg = "msg3"
 
         输出::
 
             > “## Request  ## msg1”
+            > “hello world”
             > “## Response ## msg3”
         """
-        self._enterTag = kwargs.get("enterTag", '')
-        self._enterMsg = kwargs.get("enterMsg", '')
-        self._exitTag = kwargs.get("exitTag", '')
-        self._logger = kwargs.get("logger", type('_Logger', (), {'info': print, 'error': print})())
-        self._raiseError = kwargs.get("raiseError", True)
-        self.exitMsg = kwargs.get("exitMsg", "")  # 无异常时，允许手动添加附加信息
+        self._enterTag = enterTag
+        self._enterMsg = enterMsg
+        self._exitTag = exitTag
+        self._logger = logger or type('_Logger', (), {'info': print, 'error': print})()
+        self._raiseError = raiseError
+        self.exitMsg = exitMsg  # 无异常时，允许手动添加附加信息
         self.isSuccess = True  # 无异常时，允许手动标记成功或失败
-        self.tb_callback = kwargs.get('tb_callback') or (lambda tb: None)
+        self.tb_callback = tb_callback or (lambda tb: None)
 
     def __repr__(self):
         return self.__str__()
@@ -81,7 +83,7 @@ class WithLogTag:
 
 
 class WithStep(WithLogTag):
-    def __init__(self, step, **kwargs):
+    def __init__(self, step, *, logger=None, tb_callback=None, raiseError=True):
         """step上下文管理器，在开头记录step，末尾记录step成功/失败
 
         :param step: step字符串
@@ -91,15 +93,16 @@ class WithStep(WithLogTag):
 
         使用示例::
 
-            with WithStep("step1: 连接电表"):
-                pass
+            with WithStep("step1: 打开电脑"):
+                print('hello world')
 
         输出::
 
-            > “step1: 连接电表”
-            > “step1: 连接电表 *Succeeded!*”
+            > “step1: 打开电脑”
+            > “hello world”
+            > “step1: 打开电脑 *Succeeded!*”
         """
-        super().__init__(enterTag="", exitTag="", enterMsg=step, **kwargs)
+        super().__init__(enterTag="", exitTag="", enterMsg=step, logger=logger, tb_callback=tb_callback, raiseError=raiseError)
         self.step = self._enterMsg
 
     def __str__(self):
