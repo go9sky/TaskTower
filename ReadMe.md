@@ -1,8 +1,8 @@
-# ExecuteTower - Layer
+# TaskTower
 
 ## 简介
-一个测试用例项目加载工具。将每个项目抽象分为项目（`ProjectBox`）、模块分类（`FeatureBox`）、用例函数（`CaseBox`）、步骤（`StepBox`）四个层级，
-形成一个树形结构，通过`ProjectBox.run()`执行整个测试用例项目。
+一个测试用例项目加载工具。将每个项目抽象分为项目（`ProjectLayer`）、模块分类（`FeatureLayer`）、用例函数（`CaseLayer`）、步骤（`StepLayer`）四个层级，
+形成一个树形结构，通过`ProjectLayer.run()`执行整个测试用例项目。
 
 **注意**：本库初衷是为了能实时查看用例执行状态，并且尽可能不侵入原脚本，所以将自动化测试的层级抽象类化装载，而非重写脚本。
 适用于长时间执行的自动化用例项目，可提供实时状态查询。
@@ -20,7 +20,7 @@
 
 2. 通过 `.whl` 文件安装
     ```
-    pip install dist/ExecuteTower-1.0-py3-none-any.whl
+    pip install dist/TaskTower-1.0-py3-none-any.whl
     ```
 
 
@@ -28,7 +28,7 @@
 
 ```python
 from pathlib import Path
-from ExecuteTower import ProjectLayer, FeatureLayer, CaseLayer, BaseCase
+from TaskTower import ProjectLayer, FeatureLayer, CaseLayer, BaseCase
 
 projectLayer = ProjectLayer(Path('.'))  # 用例项目初始化，设置项目根目录
 featureLayer = FeatureLayer('feature1', projectLayer)  # 模块分类初始化，设置模块分类名称、所属项目。这个名称可以是子目录名

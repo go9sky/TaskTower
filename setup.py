@@ -9,7 +9,7 @@ from setuptools import find_packages, setup
 require_list = Path("requirements.txt").read_text('utf-8').splitlines()
 
 setup(
-    name="ExecuteTower",  # 应用名
+    name="TaskTower",  # 应用名
     version='1.0',  # 版本号
     url='https://gitee.com/go9sky/ExecuteTower.git',
     packages=find_packages(),  # 包括在安装包内的 Python 包
