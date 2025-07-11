@@ -29,8 +29,8 @@ class CaseLayer:
     __count = 0  # 实例化总数
     lock = threading.Lock()
     '''用例的线程锁'''
-    def __init__(self, caseFunc, module=None, *, featureLayer=None, projectLayer=None, level='feature', flag=None,
-                 dirName=None, locked=True, skip=False, timeout=0, frequency=15):
+    def __init__(self, caseFunc, module=None, *, featureLayer=None, projectLayer=None, level=Enums.Level_feature,
+                 flag=None, dirName=None, locked=True, skip=False, timeout=0, frequency=15):
         """用例函数层级，储存运行状态、通过情况等。可添加步骤层级，但无论有无都不会有任何影响，应在用例函数内部实现stepLayer调用。
 
         :param function | IBaseCase caseFunc: 实际将执行的用例函数/类等可调用对象
@@ -78,9 +78,9 @@ class CaseLayer:
         self.__DataSpace = {}  # 数据空间，用于存储任意数据
         if all((featureLayer, projectLayer)) and featureLayer.projectLayer is not projectLayer:
             raise ValueError('父级FeatureLayer的根项目与传入的根项目不一致！')
-        if self.level == 'feature' and featureLayer is None and not baseConfig.closeWarning:
+        if self.level == Enums.Level_feature and featureLayer is None and not baseConfig.closeWarning:
             warnings.warn(f'feature级用例层必须有父级FeatureLayer！你应该在执行前及时赋值！用例：{self.caseNum}', RuntimeWarning, stacklevel=2)
-        if self.level == 'project' and projectLayer is None and not baseConfig.closeWarning:
+        if self.level == Enums.Level_project and projectLayer is None and not baseConfig.closeWarning:
             warnings.warn(f'project级用例层必须有根ProjectLayer！你应该在执行前及时赋值！用例：{self.caseNum}', RuntimeWarning, stacklevel=2)
         self.__featureLayer = featureLayer
         self.__projectLayer = projectLayer
@@ -310,7 +310,7 @@ class CaseLayer:
     @level.setter
     def level(self, level: str):
         """设置用例 level （project/feature）"""
-        if level not in ('project', 'feature'):
+        if level not in (Enums.Level_project, Enums.Level_feature):
             raise ValueError(f'`level` only can be `project` or `feature`, but not `{level}`!')
         self.__level = level
 
@@ -506,11 +506,11 @@ class CaseLayer:
         if tags:
             return tagRunMode(tags, untags)
 
-        if self.projectLayer.runBy == 'arguments':  # 通过tag判断是否执行
+        if self.projectLayer.runBy == Enums.RunBy_arguments:  # 通过tag判断是否执行
             tag = self.arguments['tag']
             untag = self.arguments.get('untag', '')
             return tagRunMode(tag, untag)
-        elif self.projectLayer.runBy == 'skip':  # 通过自身skip标记判断是否执行。setup/teardown不会跳过
+        elif self.projectLayer.runBy == Enums.RunBy_skip:  # 通过自身skip标记判断是否执行。setup/teardown不会跳过
             if self.skip and self.flag not in ('setup', 'teardown'):
                 return False
             return True
@@ -575,7 +575,7 @@ class CaseLayer:
         self.__isPass = None
         # 首先，判断是否应该执行
         if not self.shouldRun():
-            if self.projectLayer.runBy == 'skip':
+            if self.projectLayer.runBy == Enums.RunBy_skip:
                 self.__running = RunningStatus.Skipped
             return self.isPass
 
@@ -634,7 +634,7 @@ class CaseLayer:
             flag = self.flag or ''
             flagMsg = (f'({flag})' if flag else '').ljust(10, ' ')
             self.toLog.info(f'--> *执行用例* {flagMsg}: {self.descriptionSimple}')
-            if self.projectLayer.dtLogMode in ('start', 'both'):
+            if self.projectLayer.dtLogMode in (Enums.DtLogMode_start, Enums.DtLogMode_both):
                 self.dtLog.info(self.caseFullName)
             try:
                 case_result = self.caseRunFunc()
@@ -654,7 +654,7 @@ class CaseLayer:
                 err_msg = f'{err.__class__.__name__}: {err}\nAt: \n{traceback.format_exc().replace(str(Path.cwd()), "")}'
                 oneCaseLoopMsg.error = err_msg
                 self.toLog.error(f'异常错误：{err_msg}')
-                if self.projectLayer.dtLogMode in ('end', 'both'):
+                if self.projectLayer.dtLogMode in (Enums.DtLogMode_end, Enums.DtLogMode_both):
                     self.dtLog.error(f'执行用例发生异常：{err_msg}')
                 self.error_count += 1
                 self.__running = RunningStatus.Error
@@ -679,7 +679,7 @@ class CaseLayer:
                 oneCaseLoopMsg.stepErrors = tuple([f'Error in Step: [{stepLayer.step}]\n-----\n{stepLayer.error}'
                                                    for stepLayer in self.steps if stepLayer.error])
                 self.__CaseStatus.loopMsgs += (oneCaseLoopMsg,)
-                if self.projectLayer.dtLogMode in ('end', 'both'):
+                if self.projectLayer.dtLogMode in (Enums.DtLogMode_end, Enums.DtLogMode_both):
                     if self.isPass is None:
                         self.dtLog.error(f"{self.caseFullName} *** failed! *** ---execute break---")
                     elif not self.isPass:

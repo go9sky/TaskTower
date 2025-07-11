@@ -237,14 +237,14 @@ class FeatureLayer:
     def countRunCase(self) -> int:
         """统计本功能分类有多少需执行的用例"""
         count = 0
-        if self.projectLayer.runBy == 'arguments':
+        if self.projectLayer.runBy == Enums.RunBy_arguments:
             feature = self.arguments.get('feature')
             tag = self.arguments['tag']
             untag = self.arguments.get('untag', '')
             if not self.shouldRun(feature):
                 return 0
             count += sum([c.shouldRun(tag, untag) for c in self.caseLayerList])
-        elif self.projectLayer.runBy == 'skip':
+        elif self.projectLayer.runBy == Enums.RunBy_skip:
             count += sum([not c.skip for c in self.caseLayerList])
         for childFeature in self.childrenFeatures:
             count += childFeature.countRunCase()

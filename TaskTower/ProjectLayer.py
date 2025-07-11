@@ -21,7 +21,8 @@ __all__ = ['ProjectLayer', 'FeatureLayer', 'CaseLayer', 'RunningStatus']
 
 class ProjectLayer:
     """一个项目层对象，包含所有功能分类、所有用例函数对象"""
-    def __init__(self, projectPath: Path, toLog:Logger=None, dtLog:Logger=None, *, dtLogMode='end', runBy='skip'):
+    def __init__(self, projectPath: Path, toLog:Logger=None, dtLog:Logger=None, *, dtLogMode=Enums.DtLogMode_end,
+                 runBy=Enums.RunBy_skip):
         """项目层级，存储一个项目的所有功能分类、用例函数
 
         :param projectPath: 项目路径
@@ -325,7 +326,7 @@ class ProjectLayer:
         :return: 通过数，不通过数
         """
         ok = no = 0
-        feature = self.arguments.get('feature') if self.runBy == 'arguments' else None
+        feature = self.arguments.get('feature') if self.runBy == Enums.RunBy_arguments else None
         try:
             featureNames = [fb.featureName for fb in self.featureLayers]
             case_run_count = sum([fb.countRunCase() for fb in self.featureLayers])

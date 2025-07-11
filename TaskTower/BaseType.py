@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Tuple
 from pydantic import BaseModel, Field
 
-__all__ = ['simpleLog', 'RunningStatus', 'IBaseCase', 'baseConfig', 'emptyLogger',
+__all__ = ['simpleLog', 'RunningStatus', 'IBaseCase', 'baseConfig', 'Enums', 'emptyLogger',
            'StepFailContinue', 'CaseStopCanceled', 'CaseStopExit',
            'SkippedError', 'ExecuteClashError', 'ExecuteTimeoutError',
            'StepFailedError',
@@ -52,9 +52,27 @@ class IBaseCase(ABC):
     def run(self): ...
 
 
+@dataclass(frozen=True)
+class _Enums:
+    """固定枚举值"""
+    RunBy_skip = 'skip'
+    RunBy_arguments = 'arguments'
+
+    DtLogMode_no = 'no'
+    DtLogMode_end = 'end'
+    DtLogMode_start = 'start'
+    DtLogMode_both = 'both'
+
+    Level_project = 'project'
+    Level_feature = 'feature'
+
+    Flag_setup = 'setup'
+    Flag_teardown = 'teardown'
+
+
 @dataclass
-class BaseConfigs:
-    """ProjectBox 全局配置"""
+class _BaseConfigs:
+    """TaskTower 全局配置"""
     closeWarning = False
     '''是否关闭警告'''
 
@@ -65,8 +83,9 @@ class BaseConfigs:
     '''待装载用例对象中，用于存储自定义标签的属性名，默认无'''
 
 
-baseConfig = BaseConfigs()
-emptyLogger = simpleLog('BoxLogger')
+baseConfig = _BaseConfigs()
+Enums = _Enums()
+emptyLogger = simpleLog('TowerLogger')
 
 
 class StepFailContinue(Exception):  """步骤失败但继续的错误"""

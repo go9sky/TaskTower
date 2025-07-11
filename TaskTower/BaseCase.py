@@ -12,7 +12,7 @@ from abc import abstractmethod
 from types import ModuleType
 from typing import Tuple, Callable, Union
 
-from .BaseType import IBaseCase, StepFailedError, simpleLog
+from .BaseType import IBaseCase, StepFailedError, simpleLog, Enums
 from .ProjectLayer import CaseLayer
 from .StepLayer import StepLayer
 from .Step import Step, WithStep
@@ -120,7 +120,7 @@ class BaseCase(IBaseCase):
         return stepLayer
 
     def setCaseLayer(self, module: ModuleType = None, *, featureLayer=None, projectLayer=None,
-                     level='feature', flag=None, dirName=None, locked=True, skip=True, timeout=0, frequency=15):
+                     level=Enums.Level_feature, flag=None, dirName=None, locked=True, skip=True, timeout=0, frequency=15):
         """设置自身用例属性
 
         :param module: 用例函数所在.py文件对象
