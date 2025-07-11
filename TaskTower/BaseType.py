@@ -47,7 +47,7 @@ class IBaseCase(ABC):
     case_num: str         # 用例编号
     case_title: str       # 用例标题
     case_full_name: str   # 标准格式用例全称（含编号、标题，及前缀中缀后缀的格式化名称）
-    case_label: Tuple[str, ...]  # 用例自定义标签
+    case_tag: Tuple[str, ...]  # 用例自定义标签
     @abstractmethod
     def run(self): ...
 
@@ -58,8 +58,14 @@ class BaseConfigs:
     closeWarning = False
     '''是否关闭警告'''
 
+    successFlag = 0
+    '''用例函数执行返回值中，代表执行成功的值。其他执行结果也应该返回同类型值。'''
 
-baseConfig = BaseConfigs
+    tagAttributeName = ''
+    '''待装载用例对象中，用于存储自定义标签的属性名，默认无'''
+
+
+baseConfig = BaseConfigs()
 emptyLogger = simpleLog('BoxLogger')
 
 

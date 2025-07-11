@@ -129,7 +129,7 @@ class CaseLayer:
         etree.SubElement(root, 'caseNum', attrib={'value': str(self.caseNum)})
         etree.SubElement(root, 'level', attrib={'value': str(self.level)})
         etree.SubElement(root, 'flag', attrib={'value': str(self.flag)})
-        etree.SubElement(root, 'label', attrib={'value': ','.join(self.label)})
+        etree.SubElement(root, 'tag', attrib={'value': ','.join(self.tag)})
         etree.SubElement(root, 'skip', attrib={'value': str(self.skip)})
         etree.SubElement(root, 'running', attrib={'value': str(self.running.name)})
         etree.SubElement(root, 'isPass', attrib={'value': str(self.isPass)})
@@ -202,17 +202,17 @@ class CaseLayer:
         return re.sub(r"^(TestCase[:：]\s*)?\s*([\w\s.:-]*)\s*[,:，：]\s*", '', fullName, flags=re.ASCII)
 
     @property
-    def label(self) -> Tuple[str, ...]:
+    def tag(self) -> Tuple[str, ...]:
         """获取用例tag"""
         # 用例类对象
         if isinstance(self.caseFunc, IBaseCase):
-            return self.caseFunc.case_label
+            return self.caseFunc.case_tag
         # 用例类对象.run
         elif hasattr(self.caseFunc, '__self__') and isinstance(self.caseFunc.__self__, IBaseCase):
-            return self.caseFunc.__self__.case_label
+            return self.caseFunc.__self__.case_tag
         # 用例函数
-        elif hasattr(self.caseFunc, '_Decorate__decorators'):
-            return tuple(map(lambda x: x.lower(), self.caseFunc._Decorate__decorators))
+        elif baseConfig.tagAttributeName and hasattr(self.caseFunc, baseConfig.tagAttributeName):
+            return tuple(map(lambda x: x.lower(), getattr(self.caseFunc, baseConfig.tagAttributeName)))
         # 无标签则默认为用例名+目录名（如有）
         if self.dirName:
             return self.dirName, self.caseNum
@@ -316,7 +316,7 @@ class CaseLayer:
 
     @property
     def order(self):
-        """执行次序，默认都是1"""
+        """同一个feature下的执行次序，默认都是1"""
         return self.__order
 
     @order.setter
@@ -491,15 +491,15 @@ class CaseLayer:
             """通过tag方式判断是否应运行"""
             if self.flag in ('setup', 'teardown'):
                 return True
-            label = self.label
+            self_tag = self.tag
             if _untags:
                 for _untag in _untags.split(","):
-                    if _untag.lower() in label:
+                    if _untag.lower() in self_tag:
                         return False
             # 如果 taglist 中包含任意一个 tag, 则返回True
             if _tags:
                 for _tag in _tags.split(","):
-                    if _tag.lower() in label:
+                    if _tag.lower() in self_tag:
                         return True
             return False
 
@@ -637,9 +637,9 @@ class CaseLayer:
             if self.projectLayer.dtLogMode in ('start', 'both'):
                 self.dtLog.info(self.caseFullName)
             try:
-                error_code = self.caseRunFunc()
-                if not isinstance(error_code, int):
-                    raise TypeError(f'用例函数定义应返回整数（0表示成功），然而实际返回为{type(error_code)}')
+                case_result = self.caseRunFunc()
+                if not isinstance(case_result, type(baseConfig.successFlag)):
+                    raise TypeError(f'用例函数定义应返回 {type(baseConfig.successFlag)}（{baseConfig.successFlag}表示成功），然而实际返回为{type(case_result)}')
             except CaseStopCanceled:
                 self.toLog.warning(f'用例：{self.caseNum} 执行中... 已取消')
                 self.dtLog.warning(f'用例：{self.caseNum} 执行中... 已取消')
@@ -661,7 +661,7 @@ class CaseLayer:
                 self.__isPass = False
                 return self.isPass
             else:
-                self.error_count += error_code
+                self.error_count += case_result != baseConfig.successFlag
                 if self.error_count == 0:
                     self.__running = RunningStatus.Finished
                     self.__isPass = True

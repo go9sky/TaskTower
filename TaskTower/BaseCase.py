@@ -49,7 +49,7 @@ class BaseCase(IBaseCase):
     """
     case_num = ''
     case_title = ''
-    case_label: Tuple[str, ...] = ()  # 用例标签，可选重写。特殊：setup、teardown 标签被视为非用例
+    case_tag: Tuple[str, ...] = ()  # 用例标签，可选重写。特殊：setup、teardown 标签被视为非用例
 
     exe_case_id = 0  # 用例执行id
     caseLayer: CaseLayer = None
@@ -66,7 +66,7 @@ class BaseCase(IBaseCase):
 
     def __init_subclass__(cls, **kwargs):
         """子类定义检查：必须定义类属性：case_num、case_title"""
-        cls.isCase = not any(map(lambda x: x in cls.case_label, ('setup', 'teardown')))
+        cls.isCase = not any(map(lambda x: x in cls.case_tag, ('setup', 'teardown')))
         file = Path(cls.__module__.replace('.', os.sep) + '.py')
         cls.file = file
         cls.dirname = file.parent.name
