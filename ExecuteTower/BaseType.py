@@ -55,7 +55,8 @@ class IBaseCase(ABC):
 @dataclass
 class BaseConfigs:
     """ProjectBox 全局配置"""
-    closeWarning = False  # 是否关闭警告
+    closeWarning = False
+    '''是否关闭警告'''
 
 
 baseConfig = BaseConfigs

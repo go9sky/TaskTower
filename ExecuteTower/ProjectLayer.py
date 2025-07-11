@@ -3,7 +3,7 @@
 # 创建人:天霄
 # 基于 Python 3.11
 # ========================================
-# 以业务为中心，将项目、业务功能分类、用例、用例步骤抽象定义为一个盒子进行管理
+# 以业务为中心，将项目、业务功能分类、用例、用例步骤各自抽象定义为一个层级进行管理
 # ========================================
 from __future__ import annotations
 
@@ -16,13 +16,13 @@ from lxml import etree
 
 from .BaseType import *
 
-__all__ = ['ProjectBox', 'FeatureBox', 'CaseBox', 'RunningStatus']
+__all__ = ['ProjectLayer', 'FeatureLayer', 'CaseLayer', 'RunningStatus']
 
 
-class ProjectBox:
-    """一个项目盒对象，包含所有功能分类、所有用例函数对象"""
+class ProjectLayer:
+    """一个项目层对象，包含所有功能分类、所有用例函数对象"""
     def __init__(self, projectPath: Path, toLog:Logger=None, dtLog:Logger=None, *, dtLogMode='end', runBy='skip'):
-        """项目盒子，存储一个项目的所有功能分类、用例函数
+        """项目层级，存储一个项目的所有功能分类、用例函数
 
         :param projectPath: 项目路径
         :param toLog: 用于记录简要和重要信息的日志对象。默认空。
@@ -31,9 +31,9 @@ class ProjectBox:
         :param runBy: 执行用例的筛选方式，arguments-通过赋值arguments，skip-通过用例skip属性
         """
         self.__projectPath = projectPath
-        self.__featureBoxes: Tuple[FeatureBox, ...] = ()
-        self.__setup: CaseBox | None = None
-        self.__teardown: CaseBox | None = None
+        self.__featureLayers: Tuple[FeatureLayer, ...] = ()
+        self.__setup: CaseLayer | None = None
+        self.__teardown: CaseLayer | None = None
         self.toLog = toLog
         self.dtLog = dtLog
         self.__dtLogMode = dtLogMode
@@ -41,7 +41,7 @@ class ProjectBox:
         self.__arguments = {}
 
     def __str__(self): return self.descriptionFull
-    def __repr__(self): return f'ProjectBox(projectPath={self.projectPath!r})'
+    def __repr__(self): return f'ProjectLayer(projectPath={self.projectPath!r})'
 
     @property
     def descriptionDetails(self):
@@ -51,19 +51,19 @@ class ProjectBox:
         root: etree._Element = tree.getroot()
         setupEle: etree._Element = root.find('setup')
         teardownEle: etree._Element = root.find('teardown')
-        featureBoxesEle: etree._Element = root.find('featureBoxes')
+        featureLayersEle: etree._Element = root.find('featureLayers')
         if self.setup:
             setupEle.clear()
             setupEle.append(etree.ElementTree(etree.fromstring(self.setup.descriptionDetails)).getroot())
         if self.teardown:
             teardownEle.clear()
             teardownEle.append(etree.ElementTree(etree.fromstring(self.teardown.descriptionDetails)).getroot())
-        featureBoxesEle.clear()
-        for feature in self.featureBoxes:
+        featureLayersEle.clear()
+        for feature in self.featureLayers:
             feature_tree = etree.ElementTree(etree.fromstring(feature.descriptionDetails))
             feature_root: etree._Element = feature_tree.getroot()
             feature_root.set('featureName', feature.featureName)
-            featureBoxesEle.append(feature_root)
+            featureLayersEle.append(feature_root)
         new_xml = minidom.parseString(etree.tostring(tree.getroot()).replace(b'\n',b'').replace(b'\t',b'')).toprettyxml()
         new_xml: str = new_xml.replace('<?xml version="1.0" ?>', '')
         return new_xml
@@ -71,20 +71,20 @@ class ProjectBox:
     @property
     def descriptionFull(self):
         """完整自我描述"""
-        root = etree.Element('ProjectBox')  # 根节点
+        root = etree.Element('ProjectLayer')  # 根节点
         etree.SubElement(root, 'id', attrib={'value': str(id(self))})
         etree.SubElement(root, 'projectName', attrib={'value': str(self.projectName)})
         etree.SubElement(root, 'projectPath', attrib={'projectPath': str(self.projectPath)})
         setupEle = etree.SubElement(root, 'setup')
         teardownEle = etree.SubElement(root, 'teardown')
-        featureBoxesEle = etree.SubElement(root, 'featureBoxes', attrib={'count': str(len(self.featureBoxes))})
+        featureLayerEle = etree.SubElement(root, 'featureLayers', attrib={'count': str(len(self.featureLayers))})
 
         if self.setup:
             setupEle.append(etree.ElementTree(etree.fromstring(self.setup.descriptionSimple)).getroot())
         if self.teardown:
             teardownEle.append(etree.ElementTree(etree.fromstring(self.teardown.descriptionSimple)).getroot())
-        for feature in self.featureBoxes:
-            featureBoxesEle.append(etree.ElementTree(etree.fromstring(feature.descriptionSimple)).getroot())
+        for feature in self.featureLayers:
+            featureLayerEle.append(etree.ElementTree(etree.fromstring(feature.descriptionSimple)).getroot())
 
         tree = etree.ElementTree(root)
         xml_str = minidom.parseString(etree.tostring(tree.getroot())).toprettyxml()
@@ -94,21 +94,21 @@ class ProjectBox:
     @property
     def descriptionSimple(self):
         """简单自我描述"""
-        feature_names = ';'.join([feature.featureName for feature in self.featureBoxes])
-        return f'<ProjectBox id="{id(self)}" projectName="{self.projectName}" features="{feature_names}"/>'
+        feature_names = ';'.join([feature.featureName for feature in self.featureLayers])
+        return f'<ProjectLayer id="{id(self)}" projectName="{self.projectName}" features="{feature_names}"/>'
 
     @property
     def dtLogMode(self): return self.__dtLogMode
     @property
-    def featureBoxes(self): return self.__featureBoxes  # 所有功能分类盒对象
+    def featureLayers(self): return self.__featureLayers  # 所有功能分类层对象
     @property
     def projectPath(self): return self.__projectPath  # 项目路径
     @property
     def projectName(self) -> str: return self.projectPath.name  # 项目名
     @property
-    def setup(self) -> Optional[CaseBox]: return self.__setup  # setup用例函数盒子
+    def setup(self) -> Optional[CaseLayer]: return self.__setup  # setup用例函数层级
     @property
-    def teardown(self) -> Optional[CaseBox]: return self.__teardown  # teardown用例函数盒子
+    def teardown(self) -> Optional[CaseLayer]: return self.__teardown  # teardown用例函数层级
 
     @property
     def toLog(self) -> Logger:
@@ -197,43 +197,43 @@ class ProjectBox:
         try:
             for featureName, caseLoopDic in caseLoops.items():
                 for caseNum, loop in caseLoopDic.items():
-                    featureBox = self.getFeatureBox(featureName)
-                    if not featureBox:
+                    featureLayer = self.getFeatureLayer(featureName)
+                    if not featureLayer:
                         continue
-                    caseBox = featureBox.getCaseBox(caseNum)
-                    if caseBox:
-                        caseBox.loop = loop
+                    caseLayer = featureLayer.getCaseLayer(caseNum)
+                    if caseLayer:
+                        caseLayer.loop = loop
         except Exception as err:
             raise ValueError('用例循环次数参数`caseLoops`有误！应为featureName下对应的用例编号的循环次数键值对！') from err
 
-    def getFeatureBox(self, featureName: str):
-        """获取一个 FeatureBox"""
-        for featureBox in self.featureBoxes:
-            if featureBox.featureName == featureName:
-                return featureBox
+    def getFeatureLayer(self, featureName: str):
+        """获取一个 FeatureLayer"""
+        for featureLayer in self.featureLayers:
+            if featureLayer.featureName == featureName:
+                return featureLayer
         return None
 
-    def addFeatureBox(self, *featureBox: FeatureBox):
-        """添加功能分类盒对象"""
-        if not all(map(lambda f: isinstance(f, FeatureBox), featureBox)):
-            self.toLog.error(f'只能添加 FeatureBox！输入值：{featureBox}')
-            raise TypeError('只能添加 FeatureBox！')
-        if not all(map(lambda f: f.projectBox is self, featureBox)):
-            self.toLog.error(f'只能添加相同根项目的 FeatureBox！')
-            raise TypeError(f'只能添加相同根项目的 FeatureBox！')
-        for _f in featureBox:
-            if _f not in self.featureBoxes:
-                self.__featureBoxes += (_f,)
+    def addFeatureLayer(self, *featureLayer: FeatureLayer):
+        """添加功能分类层对象"""
+        if not all(map(lambda f: isinstance(f, FeatureLayer), featureLayer)):
+            self.toLog.error(f'只能添加 FeatureLayer！输入值：{featureLayer}')
+            raise TypeError('只能添加 FeatureLayer！')
+        if not all(map(lambda f: f.projectLayer is self, featureLayer)):
+            self.toLog.error(f'只能添加相同根项目的 FeatureLayer！')
+            raise TypeError(f'只能添加相同根项目的 FeatureLayer！')
+        for _f in featureLayer:
+            if _f not in self.featureLayers:
+                self.__featureLayers += (_f,)
 
-    def setSetupCaseBox(self, setupCaseBox: CaseBox):
-        """设置setup用例函数盒"""
-        if not isinstance(setupCaseBox, CaseBox):
-            self.toLog.error(f'只能设置 CaseBox！输入值：{setupCaseBox}')
-            raise TypeError('只能设置 CaseBox！')
-        setupCaseBox.projectBox = self
-        setupCaseBox.level = 'project'
-        setupCaseBox.flag = 'setup'
-        self.__setup = setupCaseBox
+    def setSetupCaseLayer(self, setupCaseLayer: CaseLayer):
+        """设置setup用例函数层"""
+        if not isinstance(setupCaseLayer, CaseLayer):
+            self.toLog.error(f'只能设置 CaseLayer！输入值：{setupCaseLayer}')
+            raise TypeError('只能设置 CaseLayer！')
+        setupCaseLayer.projectLayer = self
+        setupCaseLayer.level = 'project'
+        setupCaseLayer.flag = 'setup'
+        self.__setup = setupCaseLayer
 
     def setSetupFunc(self, setupFunc, module):
         """设置setup用例函数
@@ -241,17 +241,17 @@ class ProjectBox:
         :type setupFunc: function
         :type module: ModuleType
         """
-        self.__setup = CaseBox(setupFunc, module, projectBox=self, level='project', flag='setup')
+        self.__setup = CaseLayer(setupFunc, module, projectLayer=self, level='project', flag='setup')
 
-    def setTeardownCaseBox(self, teardownCaseBox: CaseBox):
-        """设置teardown用例函数盒"""
-        if not isinstance(teardownCaseBox, CaseBox):
-            self.toLog.error(f'只能设置 CaseBox！输入值：{teardownCaseBox}')
-            raise TypeError('只能设置 CaseBox！')
-        teardownCaseBox.projectBox = self
-        teardownCaseBox.level = 'project'
-        teardownCaseBox.flag = 'teardown'
-        self.__teardown = teardownCaseBox
+    def setTeardownCaseLayer(self, teardownCaseLayer: CaseLayer):
+        """设置teardown用例函数层"""
+        if not isinstance(teardownCaseLayer, CaseLayer):
+            self.toLog.error(f'只能设置 CaseLayer！输入值：{teardownCaseLayer}')
+            raise TypeError('只能设置 CaseLayer！')
+        teardownCaseLayer.projectLayer = self
+        teardownCaseLayer.level = 'project'
+        teardownCaseLayer.flag = 'teardown'
+        self.__teardown = teardownCaseLayer
 
     def setTeardownFunc(self, teardownFunc, module):
         """设置teardown用例函数
@@ -259,18 +259,18 @@ class ProjectBox:
         :type teardownFunc: function
         :type module: ModuleType
         """
-        self.__teardown = CaseBox(teardownFunc, module, projectBox=self, level='project', flag='teardown')
+        self.__teardown = CaseLayer(teardownFunc, module, projectLayer=self, level='project', flag='teardown')
 
-    def getRunningCaseBoxes(self) -> List[CaseBox]:
-        """获取当前所有正在运行的用例函数盒"""
-        runningCaseBoxes = []
+    def getRunningCaseLayers(self) -> List[CaseLayer]:
+        """获取当前所有正在运行的用例函数层"""
+        runningCaseLayers = []
         if self.setup is not None and self.setup.running == RunningStatus.Running:
-            runningCaseBoxes.append(self.setup)
+            runningCaseLayers.append(self.setup)
         if self.teardown is not None and self.teardown.running == RunningStatus.Running:
-            runningCaseBoxes.append(self.teardown)
-        for featureBox in self.featureBoxes:
-            runningCaseBoxes += featureBox.getRunningCaseBox()
-        return runningCaseBoxes
+            runningCaseLayers.append(self.teardown)
+        for featureLayer in self.featureLayers:
+            runningCaseLayers += featureLayer.getRunningCaseLayer()
+        return runningCaseLayers
 
     def getAllCaseStatus(self, exceptUnRun=False) -> AllCaseStatus:
         """获取当前项目所有用例的执行状态
@@ -283,40 +283,40 @@ class ProjectBox:
             all_status.runningCases += (self.setup.CaseStatus,)
         if self.teardown is not None and self.teardown.running == RunningStatus.Running:
             all_status.runningCases += (self.teardown.CaseStatus,)
-        for featureBox in self.featureBoxes:
-            runningCases = featureBox.getRunningCaseBox()
+        for featureLayer in self.featureLayers:
+            runningCases = featureLayer.getRunningCaseLayer()
             for oneCase in runningCases:
                 all_status.runningCases += (oneCase.CaseStatus,)
-            for caseBox in featureBox.caseBoxList:
-                if caseBox.running == RunningStatus.UnRun and exceptUnRun:
+            for caseLayer in featureLayer.caseLayerList:
+                if caseLayer.running == RunningStatus.UnRun and exceptUnRun:
                     continue
-                all_status.allCases += (caseBox.CaseStatus,)
+                all_status.allCases += (caseLayer.CaseStatus,)
         return all_status
 
-    def getAllWillRunCaseBoxes(self) -> List[CaseBox]:
-        """获取所有将执行的用例函数盒"""
-        willRunCaseBoxes = []
-        for featureBox in self.featureBoxes:
-            willRunCaseBoxes += featureBox.getWillRunCaseBoxes()
-        willRunCaseBoxes.sort(key=lambda cb: cb.caseNum)
-        willRunCaseBoxes.sort(key=lambda cb: cb.order)
-        return willRunCaseBoxes
+    def getAllWillRunCaseLayers(self) -> List[CaseLayer]:
+        """获取所有将执行的用例函数层"""
+        willRunCaseLayers = []
+        for featureLayer in self.featureLayers:
+            willRunCaseLayers += featureLayer.getWillRunCaseLayers()
+        willRunCaseLayers.sort(key=lambda cb: cb.caseNum)
+        willRunCaseLayers.sort(key=lambda cb: cb.order)
+        return willRunCaseLayers
 
-    def getCaseBoxByID(self, caseBoxID: int):
-        """根据用例盒ID获取用例盒对象"""
-        caseBoxID = int(caseBoxID)
-        if self.setup and self.setup.id == caseBoxID:
+    def getCaseLayerByID(self, caseLayerID: int):
+        """根据用例层ID获取用例层对象"""
+        caseLayerID = int(caseLayerID)
+        if self.setup and self.setup.id == caseLayerID:
             return self.setup
-        if self.teardown and self.teardown.id == caseBoxID:
+        if self.teardown and self.teardown.id == caseLayerID:
             return self.teardown
-        for featureBox in self.featureBoxes:
-            if featureBox.setup and featureBox.setup.id == caseBoxID:
-                return featureBox.setup
-            if featureBox.teardown and featureBox.teardown.id == caseBoxID:
-                return featureBox.teardown
-            for caseBox in featureBox.caseBoxList:
-                if caseBox.id == caseBoxID:
-                    return caseBox
+        for featureLayer in self.featureLayers:
+            if featureLayer.setup and featureLayer.setup.id == caseLayerID:
+                return featureLayer.setup
+            if featureLayer.teardown and featureLayer.teardown.id == caseLayerID:
+                return featureLayer.teardown
+            for caseLayer in featureLayer.caseLayerList:
+                if caseLayer.id == caseLayerID:
+                    return caseLayer
         return None
 
     def run(self):
@@ -327,8 +327,8 @@ class ProjectBox:
         ok = no = 0
         feature = self.arguments.get('feature') if self.runBy == 'arguments' else None
         try:
-            featureNames = [fb.featureName for fb in self.featureBoxes]
-            case_run_count = sum([fb.countRunCase() for fb in self.featureBoxes])
+            featureNames = [fb.featureName for fb in self.featureLayers]
+            case_run_count = sum([fb.countRunCase() for fb in self.featureLayers])
             if feature and feature not in featureNames or case_run_count == 0:
                 return ok, no
             if self.setup is not None:
@@ -337,7 +337,7 @@ class ProjectBox:
                 setUpIsPass = self.setup.run()
                 if not setUpIsPass:
                     return ok, no
-            for childFeature in self.featureBoxes:
+            for childFeature in self.featureLayers:
                 _ok, _no = childFeature.run()
                 ok += _ok
                 no += _no
@@ -350,5 +350,5 @@ class ProjectBox:
             self.toLog.error(f'已强制退出执行: CaseStopExit: {err}')
 
 
-from .FeatureBox import FeatureBox
-from .CaseBox import CaseBox
+from .FeatureLayer import FeatureLayer
+from .CaseLayer import CaseLayer

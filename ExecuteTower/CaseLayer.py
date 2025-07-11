@@ -3,7 +3,7 @@
 # 创建人:天霄
 # 基于 Python 3.11
 # ========================================
-# 用例盒子
+# 用例层级抽象类
 # ========================================
 from __future__ import annotations
 
@@ -24,23 +24,23 @@ from lxml import etree
 from .BaseType import *
 
 
-class CaseBox:
-    """一个用例函数盒对象，储存关于用例函数的一些数据"""
+class CaseLayer:
+    """一个用例函数层级对象，储存关于用例函数的一些数据"""
     __count = 0  # 实例化总数
     lock = threading.Lock()
     '''用例的线程锁'''
-    def __init__(self, caseFunc, module=None, *, featureBox=None, projectBox=None, level='feature', flag=None,
+    def __init__(self, caseFunc, module=None, *, featureLayer=None, projectLayer=None, level='feature', flag=None,
                  dirName=None, locked=True, skip=False, timeout=0, frequency=15):
-        """用例函数盒子，储存运行状态、通过情况等。可添加步骤盒子，但无论有无都不会有任何影响，应在用例函数内部实现stepBox调用。
+        """用例函数层级，储存运行状态、通过情况等。可添加步骤层级，但无论有无都不会有任何影响，应在用例函数内部实现stepLayer调用。
 
         :param function | IBaseCase caseFunc: 实际将执行的用例函数/类等可调用对象
         :param ModuleType module: 用例函数所在.py文件对象
-        :param FeatureBox featureBox: 父级业务功能分类盒子
-        :param ProjectBox projectBox: 根项目盒子
+        :param FeatureLayer featureLayer: 父级业务功能分类层级
+        :param ProjectLayer projectLayer: 根项目层级
         :param str level: 用例级别，默认分类级（project/feature）
         :param str flag: 特殊标记：setup、teardown（这两个flag必定执行）
-        :param str dirName: 所在功能分类目录名，当传入featureBox时以其为准。
-        :param bool skip: 是否跳过，默认否。（仅 `projectBox.runBy="skip"` 有效）
+        :param str dirName: 所在功能分类目录名，当传入featureLayer时以其为准。
+        :param bool skip: 是否跳过，默认否。（仅 `projectLayer.runBy="skip"` 有效）
         :param bool locked: 是否锁定，默认是（是-本用例只能独立运行，不允许任何用例同时并行；否-反之，若运行中的用例全部不锁定才可运行）
         :param int | float timeout: 在执行用例前检查其他用例状态、直到可运行的超时时间。（-1：永远，0：检查一次，>0：超时时间，秒）
         :param int | float frequency: 检查频率，秒
@@ -62,7 +62,7 @@ class CaseBox:
         self.error_count = 0
         if not isinstance(caseFunc, Callable):
             raise TypeError('`caseFunc`必须为可调用对象！')
-        CaseBox.__count += 1
+        CaseLayer.__count += 1
         self.__order = 1
         self.__running = RunningStatus.UnRun
         self.__isPass = None
@@ -74,20 +74,20 @@ class CaseBox:
         self.__duration = datetime.timedelta()  # 用例用时/耗时
         self.__totalTime = datetime.timedelta()  # 启动到用例实际结束的总耗时（和上面的差值就是浪费的等待时间）
         self.__totalTime_count = datetime.timedelta()  # 循环执行时，启动到用例实际结束的总耗时合计
-        self.__steps: Tuple[StepBox, ...] = ()
+        self.__steps: Tuple[StepLayer, ...] = ()
         self.__DataSpace = {}  # 数据空间，用于存储任意数据
-        if all((featureBox, projectBox)) and featureBox.projectBox is not projectBox:
-            raise ValueError('父级FeatureBox的根项目与传入的根项目不一致！')
-        if self.level == 'feature' and featureBox is None and not baseConfig.closeWarning:
-            warnings.warn(f'feature级函数盒子必须有父级FeatureBox！你应该在执行前及时赋值！用例：{self.caseNum}', RuntimeWarning, stacklevel=2)
-        if self.level == 'project' and projectBox is None and not baseConfig.closeWarning:
-            warnings.warn(f'project级函数盒子必须有根ProjectBox！你应该在执行前及时赋值！用例：{self.caseNum}', RuntimeWarning, stacklevel=2)
-        self.__featureBox = featureBox
-        self.__projectBox = projectBox
-        if self.featureBox is not None:
-            self.__dirName = self.featureBox.dirName
-            if self not in self.featureBox.caseBoxList:
-                self.featureBox.addCaseBox(self)
+        if all((featureLayer, projectLayer)) and featureLayer.projectLayer is not projectLayer:
+            raise ValueError('父级FeatureLayer的根项目与传入的根项目不一致！')
+        if self.level == 'feature' and featureLayer is None and not baseConfig.closeWarning:
+            warnings.warn(f'feature级用例层必须有父级FeatureLayer！你应该在执行前及时赋值！用例：{self.caseNum}', RuntimeWarning, stacklevel=2)
+        if self.level == 'project' and projectLayer is None and not baseConfig.closeWarning:
+            warnings.warn(f'project级用例层必须有根ProjectLayer！你应该在执行前及时赋值！用例：{self.caseNum}', RuntimeWarning, stacklevel=2)
+        self.__featureLayer = featureLayer
+        self.__projectLayer = projectLayer
+        if self.featureLayer is not None:
+            self.__dirName = self.featureLayer.dirName
+            if self not in self.featureLayer.caseLayerList:
+                self.featureLayer.addCaseLayer(self)
         self.__CaseStatus = OneCaseStatus(
             caseNum=self.caseNum,
             caseTitle=self.caseTitle,
@@ -101,7 +101,7 @@ class CaseBox:
         )
 
     def __str__(self): return self.descriptionFull
-    def __repr__(self): return f'CaseBox(caseFunc={self.caseFunc.__name__}{f", module={self.module.__name__}" if self.module else ""})'
+    def __repr__(self): return f'CaseLayer(caseFunc={self.caseFunc.__name__}{f", module={self.module.__name__}" if self.module else ""})'
 
     @property
     def descriptionDetails(self):
@@ -124,7 +124,7 @@ class CaseBox:
     @property
     def descriptionFull(self):
         """完整自我描述"""
-        root = etree.Element('CaseBox')  # 根节点
+        root = etree.Element('CaseLayer')  # 根节点
         etree.SubElement(root, 'id', attrib={'value': str(id(self))})
         etree.SubElement(root, 'caseNum', attrib={'value': str(self.caseNum)})
         etree.SubElement(root, 'level', attrib={'value': str(self.level)})
@@ -150,7 +150,7 @@ class CaseBox:
     @property
     def descriptionSimple(self):
         """简单自我描述"""
-        description = f'<CaseBox id="{id(self)}" caseNum="{self.caseNum}" level="{self.level}" flag="{self.flag}"/>'
+        description = f'<CaseLayer id="{id(self)}" caseNum="{self.caseNum}" level="{self.level}" flag="{self.flag}"/>'
         return description
 
     @property
@@ -236,34 +236,34 @@ class CaseBox:
             raise TypeError(f'请设置用例函数所在`.py`文件的`ModuleType`模块对象，而非类型`{type(module)}`！')
 
     @property
-    def projectBox(self):
-        """根项目盒子"""
-        if self.__projectBox is None:
-            return self.featureBox.projectBox
-        return self.__projectBox
+    def projectLayer(self):
+        """根项目层级"""
+        if self.__projectLayer is None:
+            return self.featureLayer.projectLayer
+        return self.__projectLayer
 
-    @projectBox.setter
-    def projectBox(self, projectBox: ProjectBox):
-        """设置根项目盒子"""
-        self.__projectBox = projectBox
+    @projectLayer.setter
+    def projectLayer(self, projectLayer: ProjectLayer):
+        """设置根项目层级"""
+        self.__projectLayer = projectLayer
 
     @property
-    def featureBox(self) -> Optional['FeatureBox']: return self.__featureBox  # 父级FeatureBox
+    def featureLayer(self) -> Optional['FeatureLayer']: return self.__featureLayer  # 父级FeatureLayer
 
-    @featureBox.setter
-    def featureBox(self, featureBox: FeatureBox):
-        """设置父级FeatureBox"""
-        if not isinstance(featureBox, FeatureBox):
-            self.toLog.error(f'只能设置 FeatureBox！')
-            raise TypeError('只能设置 FeatureBox！')
-        self.__featureBox = featureBox
-        if self not in featureBox.caseBoxList and self.flag not in ('setup', 'teardown'):
-            featureBox.addCaseBox(self)
+    @featureLayer.setter
+    def featureLayer(self, featureLayer: FeatureLayer):
+        """设置父级FeatureLayer"""
+        if not isinstance(featureLayer, FeatureLayer):
+            self.toLog.error(f'只能设置 FeatureLayer！')
+            raise TypeError('只能设置 FeatureLayer！')
+        self.__featureLayer = featureLayer
+        if self not in featureLayer.caseLayerList and self.flag not in ('setup', 'teardown'):
+            featureLayer.addCaseLayer(self)
 
     @property
     def locked(self): return self.__locked  # 是否属于独立执行的用例
     @property
-    def toLog(self): return self.__toLog or self.projectBox.toLog  # 日志对象
+    def toLog(self): return self.__toLog or self.projectLayer.toLog  # 日志对象
 
     @toLog.setter
     def toLog(self, logger: Logger):
@@ -274,7 +274,7 @@ class CaseBox:
             raise TypeError('logger 必须含有 info 和 error 方法！')
 
     @property
-    def dtLog(self): return self.__dtLog or self.projectBox.dtLog  # 日志对象
+    def dtLog(self): return self.__dtLog or self.projectLayer.dtLog  # 日志对象
 
     @dtLog.setter
     def dtLog(self, logger: Logger):
@@ -285,7 +285,7 @@ class CaseBox:
             raise TypeError('logger 必须含有 info 和 error 方法！')
 
     @property
-    def arguments(self): return self.projectBox.arguments  # 本次运行参数
+    def arguments(self): return self.projectLayer.arguments  # 本次运行参数
     @property
     def caseFunc(self): return self.__caseFunc  # 用例类/函数对象
 
@@ -355,7 +355,7 @@ class CaseBox:
             self.skip = False
 
     @property
-    def steps(self): return self.__steps  # 下级步骤盒子对象
+    def steps(self): return self.__steps  # 下级步骤层级对象
     @property
     def running(self) -> RunningStatus: return self.__running
     @property
@@ -439,34 +439,34 @@ class CaseBox:
         """获取数据"""
         return self.__DataSpace.get(key)
 
-    def getRunningStep(self) -> Optional[StepBox]:
+    def getRunningStep(self) -> Optional[StepLayer]:
         """获取正在执行的步骤"""
         for step in self.steps:
             if step.running == RunningStatus.Running:
                 return step
         return None
 
-    def getStepBoxByID(self, stepBoxID: int):
-        """根据步骤盒ID获取步骤盒对象"""
+    def getStepLayerByID(self, stepLayerID: int):
+        """根据步骤层ID获取步骤层对象"""
         if not self.steps:
             return None
-        stepBoxID = int(stepBoxID)
-        for stepBox in self.steps:
-            if stepBox.id == stepBoxID:
-                return stepBox
+        stepLayerID = int(stepLayerID)
+        for stepLayer in self.steps:
+            if stepLayer.id == stepLayerID:
+                return stepLayer
         return None
 
-    def addStepBox(self, *stepBox: StepBox):
-        """添加步骤盒对象"""
-        if not all(map(lambda c: isinstance(c, StepBox), stepBox)):
-            self.toLog.error(f'本函数只能添加 StepBox！输入值：{stepBox}')
-            raise TypeError('本函数只能添加 StepBox！')
-        if not all(map(lambda c: c.caseBox is self or c.caseBox is None, stepBox)):
-            self.toLog.error(f'只能添加本用例下的 StepBox！')
-            raise TypeError('只能添加本用例下的 StepBox！')
-        for _s in stepBox:
-            if _s.caseBox is None:
-                _s.caseBox = self
+    def addStepLayer(self, *stepLayer: StepLayer):
+        """添加步骤层对象"""
+        if not all(map(lambda c: isinstance(c, StepLayer), stepLayer)):
+            self.toLog.error(f'本函数只能添加 StepLayer！输入值：{stepLayer}')
+            raise TypeError('本函数只能添加 StepLayer！')
+        if not all(map(lambda c: c.caseLayer is self or c.caseLayer is None, stepLayer)):
+            self.toLog.error(f'只能添加本用例下的 StepLayer！')
+            raise TypeError('只能添加本用例下的 StepLayer！')
+        for _s in stepLayer:
+            if _s.caseLayer is None:
+                _s.caseLayer = self
             if _s not in self.steps:
                 self.__steps += (_s,)
 
@@ -477,8 +477,8 @@ class CaseBox:
         try:
             return getattr(self.module, attrName)
         except Exception as err:
-            self.toLog.error(f'无法从module获取属性：{attrName}，错误：{err}，用例盒子：{self}')
-            raise AttributeError(err, f'无法从module获取属性：{attrName}，用例盒子：{self}')
+            self.toLog.error(f'无法从module获取属性：{attrName}，错误：{err}，用例层：{self}')
+            raise AttributeError(err, f'无法从module获取属性：{attrName}，用例层：{self}')
 
     def shouldRun(self, tags='', untags=''):
         """本用例是否应执行。若给出tags，则以此tags/untags判断。
@@ -506,19 +506,19 @@ class CaseBox:
         if tags:
             return tagRunMode(tags, untags)
 
-        if self.projectBox.runBy == 'arguments':  # 通过tag判断是否执行
+        if self.projectLayer.runBy == 'arguments':  # 通过tag判断是否执行
             tag = self.arguments['tag']
             untag = self.arguments.get('untag', '')
             return tagRunMode(tag, untag)
-        elif self.projectBox.runBy == 'skip':  # 通过自身skip标记判断是否执行。setup/teardown不会跳过
+        elif self.projectLayer.runBy == 'skip':  # 通过自身skip标记判断是否执行。setup/teardown不会跳过
             if self.skip and self.flag not in ('setup', 'teardown'):
                 return False
             return True
         else:
-            raise AttributeError(f"projectBox.runBy 意外值：{self.projectBox.runBy}")
+            raise AttributeError(f"projectLayer.runBy 意外值：{self.projectLayer.runBy}")
 
-    def willRun(self, *projectBox: ProjectBox) -> bool:
-        """指定projectBox，通过读取当前运行用例，以及是否独立运行、是否允许插队，判断本用例是否将执行
+    def willRun(self, *projectLayer: ProjectLayer) -> bool:
+        """指定projectLayer，通过读取当前运行用例，以及是否独立运行、是否允许插队，判断本用例是否将执行
 
         判断逻辑：
             - 用例运行前，首先 -> 读取当前运行的用例
@@ -532,24 +532,24 @@ class CaseBox:
                     - 若任一用例锁定，或自身无步骤：**【继续等待】**  *[END]*
                     - 若所有用例不锁定：**【执行本用例】**  *[END]*
 
-        :param projectBox: 指定的projectBox
+        :param projectLayer: 指定的projectLayer
         :return: 本用例是否将执行
         """
-        runningFuncBoxes = [caseBox for proBox in projectBox for caseBox in proBox.getRunningCaseBoxes()]
-        if not runningFuncBoxes:  # 1. 若无其他运行用例：本用例将运行
+        runningFuncLayers = [caseLayer for proLayer in projectLayer for caseLayer in proLayer.getRunningCaseLayers()]
+        if not runningFuncLayers:  # 1. 若无其他运行用例：本用例将运行
             return True
         # 2. 若有其他运行用例：读取自身 `locked`
         if self.locked:  # 2.1. 若自身锁定：继续等待
             return False
         # 2.2. 若自身不锁定 -> 读取该运行中的用例的 `locked`
         # 2.2.1. 若任一用例锁定，或自身无步骤：继续等待
-        if not self.steps or any([caseBox.locked for caseBox in runningFuncBoxes]):
+        if not self.steps or any([caseLayer.locked for caseLayer in runningFuncLayers]):
             return False
         # 2.2.2. 若所有用例非独立执行：执行本用例
         return True
 
     def run(self):
-        """执行这条用例（加入步骤只是方便管理，无论有无步骤都不影响。应该在用例内部实现stepBox的调用）
+        """执行这条用例（加入步骤只是方便管理，无论有无步骤都不影响。应该在用例内部实现stepLayer的调用）
 
         示例::
 
@@ -557,17 +557,17 @@ class CaseBox:
             def step2Func(*args, **kwargs): ...
 
             def case():  # 内部自己实现步骤之间的复杂逻辑
-                num = stepBox1.runStep(...)
+                num = stepLayer1.runStep(...)
 
                 for _ in range(num):
-                    stepBox2.runStep()
+                    stepLayer2.runStep()
 
                 return 0
 
-            caseBox = CaseBox(case, featureBox=...)
-            stepBox1 = StepBox(Step('步骤第一步'), step1Func, caseBox)
-            stepBox2 = StepBox(Step('步骤第二步', 2), step2Func, caseBox)
-            caseBox.run()
+            caseLayer = CaseLayer(case, featureLayer=...)
+            stepLayer1 = StepLayer(Step('步骤第一步'), step1Func, caseLayer)
+            stepLayer2 = StepLayer(Step('步骤第二步', 2), step2Func, caseLayer)
+            caseLayer.run()
 
         :return: 是否通过
         """
@@ -575,7 +575,7 @@ class CaseBox:
         self.__isPass = None
         # 首先，判断是否应该执行
         if not self.shouldRun():
-            if self.projectBox.runBy == 'skip':
+            if self.projectLayer.runBy == 'skip':
                 self.__running = RunningStatus.Skipped
             return self.isPass
 
@@ -583,7 +583,7 @@ class CaseBox:
         self.__running = RunningStatus.Waiting
         self.__launchTime = datetime.datetime.now()
         if self.timeout == 0:
-            if not self.willRun(self.projectBox):
+            if not self.willRun(self.projectLayer):
                 self.__running = RunningStatus.Timeout
                 self.__totalTime = datetime.datetime.now() - self.launchTime
                 self.__totalTime_count += self.__totalTime
@@ -596,7 +596,7 @@ class CaseBox:
             usetime = time.time() - start
             try:
                 while usetime < self.timeout or self.timeout == -1:
-                    willRun = self.willRun(self.projectBox)
+                    willRun = self.willRun(self.projectLayer)
                     if willRun:
                         break
                     self.toLog.info(f'用例：{self.caseNum} 等待其他执行中的用例执行完毕... 等待间隔：{self.frequency}s')
@@ -634,7 +634,7 @@ class CaseBox:
             flag = self.flag or ''
             flagMsg = (f'({flag})' if flag else '').ljust(10, ' ')
             self.toLog.info(f'--> *执行用例* {flagMsg}: {self.descriptionSimple}')
-            if self.projectBox.dtLogMode in ('start', 'both'):
+            if self.projectLayer.dtLogMode in ('start', 'both'):
                 self.dtLog.info(self.caseFullName)
             try:
                 error_code = self.caseRunFunc()
@@ -654,7 +654,7 @@ class CaseBox:
                 err_msg = f'{err.__class__.__name__}: {err}\nAt: \n{traceback.format_exc().replace(str(Path.cwd()), "")}'
                 oneCaseLoopMsg.error = err_msg
                 self.toLog.error(f'异常错误：{err_msg}')
-                if self.projectBox.dtLogMode in ('end', 'both'):
+                if self.projectLayer.dtLogMode in ('end', 'both'):
                     self.dtLog.error(f'执行用例发生异常：{err_msg}')
                 self.error_count += 1
                 self.__running = RunningStatus.Error
@@ -676,10 +676,10 @@ class CaseBox:
                 oneCaseLoopMsg.duration = self.__duration = now - self.beginTime
                 self.__totalTime = now - self.launchTime
                 self.__totalTime_count += self.__totalTime
-                oneCaseLoopMsg.stepErrors = tuple([f'Error in Step: [{stepBox.step}]\n-----\n{stepBox.error}'
-                                                   for stepBox in self.steps if stepBox.error])
+                oneCaseLoopMsg.stepErrors = tuple([f'Error in Step: [{stepLayer.step}]\n-----\n{stepLayer.error}'
+                                                   for stepLayer in self.steps if stepLayer.error])
                 self.__CaseStatus.loopMsgs += (oneCaseLoopMsg,)
-                if self.projectBox.dtLogMode in ('end', 'both'):
+                if self.projectLayer.dtLogMode in ('end', 'both'):
                     if self.isPass is None:
                         self.dtLog.error(f"{self.caseFullName} *** failed! *** ---execute break---")
                     elif not self.isPass:
@@ -692,11 +692,11 @@ class CaseBox:
                 self.dtLog.info(f'循环执行用例 *Loop[{i + 1}/{self.loop}]*'.center(60, '-'))
             if not self.locked:  # 不锁定，不要求独立执行，则不需要线程锁
                 main_run(OneCaseLoopMsg(loopIndex=i))
-            with CaseBox.lock:
+            with CaseLayer.lock:
                 main_run(OneCaseLoopMsg(loopIndex=i))
         return self.isPass
 
 
-from .ProjectBox import ProjectBox
-from .FeatureBox import FeatureBox
-from .StepBox import StepBox
+from .ProjectLayer import ProjectLayer
+from .FeatureLayer import FeatureLayer
+from .StepLayer import StepLayer

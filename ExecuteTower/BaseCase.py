@@ -13,8 +13,8 @@ from types import ModuleType
 from typing import Tuple, Callable, Union
 
 from .BaseType import IBaseCase, StepFailedError, simpleLog
-from .ProjectBox import CaseBox
-from .StepBox import StepBox
+from .ProjectLayer import CaseLayer
+from .StepLayer import StepLayer
 from .Step import Step, WithStep
 
 dtLogger = simpleLog('DetailLogger')
@@ -33,9 +33,9 @@ class BaseCase(IBaseCase):
             case_title = '我的用例001'
 
             def init(self):
-                self.step1 = self.addStepBox("step1: 选择电表", func1)
-                self.step2 = self.addStepBox("step2: 连接电表", func2)
-                self.step3 = self.addStepBox("step3: 断开电表", func3)
+                self.step1 = self.addStepLayer("step1: 选择电表", func1)
+                self.step2 = self.addStepLayer("step2: 连接电表", func2)
+                self.step3 = self.addStepLayer("step3: 断开电表", func3)
 
             def run(self):
                 meterNum = self.step1.runStep()
@@ -52,8 +52,8 @@ class BaseCase(IBaseCase):
     case_label: Tuple[str, ...] = ()  # 用例标签，可选重写。特殊：setup、teardown 标签被视为非用例
 
     exe_case_id = 0  # 用例执行id
-    caseBox: CaseBox = None
-    stepBoxs: Tuple[StepBox] = ()
+    caseLayer: CaseLayer = None
+    stepLayers: Tuple[StepLayer] = ()
     __all_case_num = set()
 
     @abstractmethod
@@ -75,16 +75,16 @@ class BaseCase(IBaseCase):
         if not cls.case_title:
             raise NotImplementedError(f"未定义类属性`case_title`！子类：`{cls.__name__}` in `{file}`")
         cls_dict = cls.__dict__
-        if 'stepBoxs' in cls_dict:
-            raise PermissionError(f"禁止重新定义属性`stepBoxs`！子类：`{cls.__name__}` in `{file}`")
-        if 'caseBox' in cls_dict:
-            raise PermissionError(f"禁止在类属性上重新定义`caseBox`，请通过重写`init`方法赋值！子类：`{cls.__name__}` in `{file}`")
+        if 'stepLayers' in cls_dict:
+            raise PermissionError(f"禁止重新定义属性`stepLayers`！子类：`{cls.__name__}` in `{file}`")
+        if 'caseLayer' in cls_dict:
+            raise PermissionError(f"禁止在类属性上重新定义`caseLayer`，请通过重写`init`方法赋值！子类：`{cls.__name__}` in `{file}`")
         if '__init__' in cls_dict:
             raise PermissionError(f"禁止重写`__init__`方法！子类：`{cls.__name__}` in `{file}`")
-        if 'addStepBox' in cls_dict:
-            raise PermissionError(f"禁止重写`addStepBox`方法！子类：`{cls.__name__}` in `{file}`")
-        if 'getStepBox' in cls_dict:
-            raise PermissionError(f"禁止重写`getStepBox`方法！子类：`{cls.__name__}` in `{file}`")
+        if 'addStepLayer' in cls_dict:
+            raise PermissionError(f"禁止重写`addStepLayer`方法！子类：`{cls.__name__}` in `{file}`")
+        if 'getStepLayer' in cls_dict:
+            raise PermissionError(f"禁止重写`getStepLayer`方法！子类：`{cls.__name__}` in `{file}`")
         if 'at_step' in cls_dict:
             raise PermissionError(f"禁止重写`at_step`方法！子类：`{cls.__name__}` in `{file}`")
         cls.case_full_name = f"TestCase: {cls.case_num}, {cls.case_title}"
@@ -99,52 +99,52 @@ class BaseCase(IBaseCase):
         self.successMsg = ''  # 执行成功后的附加信息
         self.failMsg = ''  # 执行失败后的附加信息
         self.init()
-        self.caseBox.dtLog = dtLogger
+        self.caseLayer.dtLog = dtLogger
 
-    def at_step(self, stepBox: StepBox) -> StepBox:
-        """装饰步骤盒的步骤函数，在步骤前后执行数据库记录更新；在可传递的情况下传递自身exLog参数"""
-        func = stepBox.stepFunc
+    def at_step(self, stepLayer: StepLayer) -> StepLayer:
+        """装饰步骤层的步骤函数，在步骤前后执行数据库记录更新；在可传递的情况下传递自身exLog参数"""
+        func = stepLayer.stepFunc
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            with stepBox.withStep():
+            with stepLayer.withStep():
                 try:
                     result = func(*args, **kwargs)
                     return result
                 except Exception as e:
-                    self.caseBox.dtLog.error(f'步骤失败：【{stepBox.step}】，问题：【{e.__class__.__name__}: {e}】')
-                    raise StepFailedError(str(stepBox.step), f'执行步骤失败，问题：{e}') from e
+                    self.caseLayer.dtLog.error(f'步骤失败：【{stepLayer.step}】，问题：【{e.__class__.__name__}: {e}】')
+                    raise StepFailedError(str(stepLayer.step), f'执行步骤失败，问题：{e}') from e
 
-        stepBox.stepFunc = wrapper
-        stepBox.step.logger = dtLogger
-        return stepBox
+        stepLayer.stepFunc = wrapper
+        stepLayer.step.logger = dtLogger
+        return stepLayer
 
-    def setCaseBox(self, module: ModuleType = None, *, featureBox=None, projectBox=None,
-                   level='feature', flag=None, dirName=None, locked=True, skip=True, timeout=0, frequency=15):
+    def setCaseLayer(self, module: ModuleType = None, *, featureLayer=None, projectLayer=None,
+                     level='feature', flag=None, dirName=None, locked=True, skip=True, timeout=0, frequency=15):
         """设置自身用例属性
 
         :param module: 用例函数所在.py文件对象
-        :param featureBox: 父级业务功能模块盒子
-        :param projectBox: 根项目盒子
+        :param featureLayer: 父级业务功能模块层级
+        :param projectLayer: 根项目层级
         :param level: 用例级别，默认模块级（project/feature）
         :param flag: 特殊标记：setup、teardown（这两个flag必定执行）
-        :param dirName: 所在模块目录名，当传入featureBox时以其为准。
-        :param skip: 是否跳过，默认是。（仅 `projectBox.runBy="skip"` 有效）
+        :param dirName: 所在模块目录名，当传入featureLayer时以其为准。
+        :param skip: 是否跳过，默认是。（仅 `projectLayer.runBy="skip"` 有效）
         :param locked: 是否锁定，默认是（是-本用例只能独立运行，不允许任何用例同时并行；否-反之，若运行中的用例全部不锁定才可运行）
         :param timeout: 在执行用例前检查其他用例状态、直到可运行的超时时间。（-1：永远，0：检查一次，>0：超时时间，秒）
         :param frequency: 检查频率，秒
 
         :type module: ModuleType
-        :type featureBox: FeatureBox
-        :type projectBox: ProjectBox
+        :type featureLayer: FeatureLayer
+        :type projectLayer: ProjectLayer
         :type level: str
         :type flag: str
         :type dirName: str
         """
-        self.caseBox = CaseBox(self.run, module, featureBox=featureBox, projectBox=projectBox, level=level,
-                               flag=flag, dirName=dirName, locked=locked, skip=skip, timeout=timeout,
-                               frequency=frequency)
-        return self.caseBox
+        self.caseLayer = CaseLayer(self.run, module, featureLayer=featureLayer, projectLayer=projectLayer, level=level,
+                                   flag=flag, dirName=dirName, locked=locked, skip=skip, timeout=timeout,
+                                   frequency=frequency)
+        return self.caseLayer
 
     @property
     def teardownFunctions(self):
@@ -177,8 +177,8 @@ class BaseCase(IBaseCase):
     def __call__(self):
         return self.run()
 
-    def addStepBox(self, step, stepFunc, locked=True, timeout=0, frequency=15, autoType='auto', failContinue=False) -> StepBox:
-        """添加步骤盒
+    def addStepLayer(self, step, stepFunc, locked=True, timeout=0, frequency=15, autoType='auto', failContinue=False) -> StepLayer:
+        """添加步骤层
 
         :param step: 步骤名，Step对象或str描述
         :param stepFunc: 步骤对应的函数
@@ -189,24 +189,24 @@ class BaseCase(IBaseCase):
         :param failContinue: 失败是否继续下一步，默认否
         :type step: Step | str
         :type stepFunc: function
-        :return: StepBox对象
+        :return: StepLayer对象
         """
-        if not self.caseBox:
-            self.setCaseBox()
+        if not self.caseLayer:
+            self.setCaseLayer()
         step = step if isinstance(step, Step) else Step(step, parseFromMsg=True)
-        if step.stepName in [sBox.stepName for sBox in self.stepBoxs]:
+        if step.stepName in [sLayer.stepName for sLayer in self.stepLayers]:
             raise ValueError(f'步骤名重复：{step.stepName}')
-        stepBox = StepBox(step, stepFunc, self.caseBox, locked=locked, timeout=timeout, frequency=frequency,
-                          autoType=autoType, failContinue=failContinue)
-        stepBox = self.at_step(stepBox)
-        self.stepBoxs += (stepBox,)
-        return stepBox
+        stepLayer = StepLayer(step, stepFunc, self.caseLayer, locked=locked, timeout=timeout, frequency=frequency,
+                            autoType=autoType, failContinue=failContinue)
+        stepLayer = self.at_step(stepLayer)
+        self.stepLayers += (stepLayer,)
+        return stepLayer
 
-    def getStepBox(self, step: Step):
-        """获取步骤盒"""
-        for stepBox in self.stepBoxs:
-            if stepBox.step == step:
-                return stepBox
+    def getStepLayer(self, step: Step):
+        """获取步骤层"""
+        for stepLayer in self.stepLayers:
+            if stepLayer.step == step:
+                return stepLayer
         return None
 
     def duringDoing(self, doFunc: Callable, days: Union[int, float], atTime: Union[str, datetime.time]):
@@ -229,7 +229,7 @@ class BaseCase(IBaseCase):
         frequency = 45
         while (now := datetime.datetime.now()) - start < datetime.timedelta(days=days):
             if now.hour == targetTime.hour and now.minute == targetTime.minute and now.second == targetTime.second:
-                self.caseBox.dtLog.info(f'到达指定时间 {atTime}，开始定时执行')
+                self.caseLayer.dtLog.info(f'到达指定时间 {atTime}，开始定时执行')
                 doFunc()
                 frequency = 45
             elif now.hour == closeTo.hour and now.minute == closeTo.minute:

@@ -3,7 +3,7 @@
 # 创建人:天霄
 # 基于 Python 3.11
 # ========================================
-# 用例步骤盒子
+# 用例步骤层级抽象类
 # ========================================
 from __future__ import annotations
 
@@ -18,17 +18,18 @@ from lxml import etree
 from .Step import Step
 from .BaseType import *
 
-class StepBox:
-    """一个管理用例函数中一个步骤的盒对象，储存关于该步骤的一些数据"""
+
+class StepLayer:
+    """一个管理用例函数中一个步骤的层级对象，储存关于该步骤的一些数据"""
     lock = threading.Lock()
     '''步骤的线程锁'''
-    def __init__(self, step, stepFunc, caseBox=None, *, locked=True, skip=False, timeout=0, frequency=15,
+    def __init__(self, step, stepFunc, caseLayer=None, *, locked=True, skip=False, timeout=0, frequency=15,
                  autoType='auto', failContinue=False):
-        """加载步骤函数到盒对象
+        """加载步骤函数为抽象层级对象
 
         :param Step | str step: 步骤名
         :param Callable stepFunc: 步骤函数/类等可调用对象
-        :param CaseBox caseBox: 父级用例函数盒子
+        :param CaseLayer caseLayer: 父级用例函数层级
         :param bool locked: 是否锁定，默认是（是-必须没有其他运行中的锁定步骤时才能执行；否-视为闲置步骤，无视任何条件直接执行）
         :param bool skip: 是否跳过执行，默认否。
         :param int | float timeout: 在运行步骤前检查其他步骤状态、直到可运行的超时时间。（-1：永远，0：检查一次，>0：超时时间，秒）
@@ -41,24 +42,24 @@ class StepBox:
         self.__step = step if isinstance(step, Step) else Step(step, parseFromMsg=True)
         self.__locked = locked
         self.__autoType = autoType
-        self.__caseBox = None
+        self.__caseLayer = None
         self.__failContinue = failContinue
         self.error = None
-        self.caseBox = caseBox
+        self.caseLayer = caseLayer
         self.stepFunc = stepFunc
         self.skip = skip
         self.timeout = timeout
         self.frequency = frequency
-        if caseBox and self not in self.caseBox.steps:
-            self.caseBox.addStepBox(self)
+        if caseLayer and self not in self.caseLayer.steps:
+            self.caseLayer.addStepLayer(self)
 
     def __str__(self): return self.descriptionFull
-    def __repr__(self): return f'StepBox(step={str(self.step)!r}, stepFunc={self.stepFunc!r})'
+    def __repr__(self): return f'StepLayer(step={str(self.step)!r}, stepFunc={self.stepFunc!r})'
 
     @property
     def descriptionFull(self):
         """完整自我描述"""
-        root = etree.Element('StepBox')  # 根节点
+        root = etree.Element('StepLayer')  # 根节点
         etree.SubElement(root, 'id', attrib={'value': str(id(self))})
         etree.SubElement(root, 'caseNum', attrib={'value': str(self.caseNum)})
         etree.SubElement(root, 'stepName', attrib={'value': str(self.stepName)})
@@ -75,7 +76,7 @@ class StepBox:
     @property
     def descriptionSimple(self):
         """简单自我描述"""
-        return f'<StepBox id="{id(self)}" caseNum="{self.caseNum}" stepName="{self.stepName}" locked="{self.locked}"/>'
+        return f'<StepLayer id="{id(self)}" caseNum="{self.caseNum}" stepName="{self.stepName}" locked="{self.locked}"/>'
 
     @property
     def id(self): return id(self)
@@ -84,7 +85,7 @@ class StepBox:
     @property
     def stepName(self): return self.step.stepName  # 步骤名，如：step1、step3-2
     @property
-    def caseNum(self): return self.caseBox.caseNum
+    def caseNum(self): return self.caseLayer.caseNum
     @property
     def locked(self): return self.__locked  # 是否锁定
     @property
@@ -94,7 +95,7 @@ class StepBox:
     @property
     def isPass(self) -> Union[bool, None]: return self.__isPass  # 步骤是否通过（None-尚未执行完毕，True-通过，False-不通过）
     @property
-    def toLog(self): return self.caseBox.toLog  # 日志对象
+    def toLog(self): return self.caseLayer.toLog  # 日志对象
 
     @property
     def stepFunc(self):
@@ -142,18 +143,18 @@ class StepBox:
         self.__frequency = frequency
 
     @property
-    def caseBox(self) -> CaseBox: return self.__caseBox  # 父级用例函数盒子
+    def caseLayer(self) -> CaseLayer: return self.__caseLayer  # 父级用例函数层级
 
-    @caseBox.setter
-    def caseBox(self, caseBox: CaseBox):
-        """设置父级用例函数盒子"""
-        if self.__caseBox is not None:
-            raise ValueError('caseBox 已存在值！不可覆盖！')
-        if not isinstance(caseBox, CaseBox):
-            raise TypeError(f'caseBox 必须为 CaseBox！输入值：{caseBox}')
-        self.__caseBox = caseBox
-        if self not in caseBox.steps:
-            caseBox.addStepBox(self)
+    @caseLayer.setter
+    def caseLayer(self, caseLayer: CaseLayer):
+        """设置父级用例层级"""
+        if self.__caseLayer is not None:
+            raise ValueError('caseLayer 已存在值！不可覆盖！')
+        if not isinstance(caseLayer, CaseLayer):
+            raise TypeError(f'caseLayer 必须为 CaseLayer！输入值：{caseLayer}')
+        self.__caseLayer = caseLayer
+        if self not in caseLayer.steps:
+            caseLayer.addStepLayer(self)
 
     def withStep(self, logger=None):
         """子步骤执行上下文管理器
@@ -178,19 +179,19 @@ class StepBox:
                     - 若其他步骤任一锁定：**【继续等待】** *[END]*
                     - 若其他步骤全部不锁定：**【执行本步骤】** *[END]*
 
-        :param runningCases: 运行中的用例函数盒子集，默认读自所属用例的项目盒子
-        :type runningCases: list[CaseBox]
+        :param runningCases: 运行中的用例层级集，默认读自所属用例的项目层级
+        :type runningCases: list[CaseLayer]
         :return: 是否将执行
         """
         if not self.locked:  # 1. 若本步骤不锁定：执行本步骤
             return True
         # 2. 若本步骤锁定：-> 读取当前运行的步骤
-        runningCases = runningCases or self.caseBox.projectBox.getRunningCaseBoxes()
-        runningStepBoxes = [case.getRunningStep() for case in runningCases if case.getRunningStep() is not None]
-        if not runningStepBoxes:  # 2.1 若无其他运行步骤：执行本步骤
+        runningCases = runningCases or self.caseLayer.projectLayer.getRunningCaseLayers()
+        runningStepLayers = [case.getRunningStep() for case in runningCases if case.getRunningStep() is not None]
+        if not runningStepLayers:  # 2.1 若无其他运行步骤：执行本步骤
             return True
         # 2.2 若有其他运行步骤 -> 遍历其他步骤是否锁定。 只有其他步骤全部不锁定才判断将执行。
-        for step in runningStepBoxes:
+        for step in runningStepLayers:
             if step.locked:  # 2.2.1 若其他步骤锁定：继续等待
                 return False
         return True  # 2.2.2 若其他步骤不锁定：执行本步骤
@@ -248,7 +249,7 @@ class StepBox:
                 self.__isPass = False
                 if not self.__failContinue:
                     raise
-                self.caseBox.error_count += 1
+                self.caseLayer.error_count += 1
                 return StepFailContinue(err)
             else:
                 self.__running = RunningStatus.Finished
@@ -257,8 +258,8 @@ class StepBox:
 
         if not self.locked:  # 闲置步骤则不需要线程锁
             return main_runStep()
-        with StepBox.lock:
+        with StepLayer.lock:
             return main_runStep()
 
 
-from .CaseBox import CaseBox
+from .CaseLayer import CaseLayer
